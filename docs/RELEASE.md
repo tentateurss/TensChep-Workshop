@@ -39,3 +39,7 @@ Windows x64: отдельное venv, `pyinstaller==6.22.3`, затем `python 
 Цифровая подпись EXE и проверка подписанного manifest пока отсутствуют. SHA-256 относительно того же GitHub Release не защищает от компрометации аккаунта или источника. [GitHub artifact attestations](https://docs.github.com/en/actions/how-tos/secure-your-work/use-artifact-attestations/use-artifact-attestations) рассмотрены, но встроенная проверка происхождения ещё не реализована; не следует считать текущую схему эквивалентом цифровой подписи.
 
 Архив не включает игровые экспорты и личные данные. RePoE указывает права GGG на игровые данные: https://repoe-fork.github.io/. Скачанные таблицы PoB сопровождаются NOTICE. Python поставляется с лицензией; PyInstaller допускает распространение собранных приложений с соответствующим исключением: https://pyinstaller.org/en/stable/license.html.
+
+## Beta 2
+
+Опубликован [v1.0.0-beta.2](https://github.com/tentateurss/TensChep-Workshop/releases/tag/v1.0.0-beta.2) из коммита eb93c6ec454de247d9ac8cda23acbba2fee48c94. Полный набор — 213 тестов, OK; workflow успешно выполнил сборку, Windows smoke и внешнюю установку с rollback. Опубликованный ZIP скачан и повторно проверен без Python в PATH. Размер 10 584 072 байта; SHA-256 `87db8be7ee2d58a9934274eee7e1155b52448f0aee1bfc4a48702a15d1ed91c9`. Это готовность к внешнему тестированию Windows-версии, а не подтверждение игровых данных 3.30.
