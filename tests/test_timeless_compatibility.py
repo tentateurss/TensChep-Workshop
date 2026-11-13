@@ -78,3 +78,25 @@ class TimelessCompatibility(unittest.TestCase):
   from poecraft.engine import timeless as engine
   with patch('poecraft.data.timeless_status.require',return_value={'compatibility':'unverified'}),patch.object(engine,'in_radius',return_value=[('1',{'kind':'notable'})]),patch.object(timeless,'column',return_value=None):
    with self.assertRaises(timeless.TimelessDataMissing):engine.equivalents(2,10000,'socket')
+ def test_malformed_manifest_groups_are_incompatible(self):
+  with tempfile.TemporaryDirectory() as d:
+   root=Path(d);original=self.fixture(root)
+   for key in ('revisions','sources','sha256'):
+    for value in (None,[], 'invalid'):
+     with self.subTest(key=key,value=value):
+      meta=dict(original,**{key:value});(root/'manifest.json').write_text(json.dumps(meta))
+      result=status(root,'3.29.3.6')
+      self.assertEqual(result['compatibility'],'incompatible')
+      self.assertEqual(result['reason'],'invalid_manifest')
+ def test_unknown_revision_in_valid_manifest_is_not_corruption(self):
+  with tempfile.TemporaryDirectory() as d:
+   root=Path(d);meta=self.fixture(root);meta['revisions']={'pob':None,'tree':None}
+   (root/'manifest.json').write_text(json.dumps(meta))
+   self.assertEqual(status(root,'3.29.3.6')['compatibility'],'unverified')
+ def test_invalid_timeless_manifest_does_not_break_other_evaluations(self):
+  from poecraft.engine import evaluator
+  with tempfile.TemporaryDirectory() as d:
+   root=Path(d);meta=self.fixture(root);meta['revisions']=None;(root/'manifest.json').write_text(json.dumps(meta))
+   with patch.object(timeless,'TIMELESS_DIR',root),patch.dict(evaluator._CACHE,{},clear=True),patch.object(evaluator.trade,'current_league',return_value={'league':'Test','source':'trade','known':['Test']}),patch.object(evaluator,'_price_league',return_value=None),patch.object(evaluator,'_evaluate',return_value={'kind':'other','warnings':[],'listings':[]}) as compute:
+    self.assertEqual(evaluator.evaluate('Chaos Orb')['kind'],'other')
+    compute.assert_called_once()

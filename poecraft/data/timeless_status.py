@@ -19,7 +19,10 @@ def status(root=None, game_version=None):
     result={'compatibility':'unverified','game_version':game_version,'table_game_version':None,'revision':None,'reason':'version_unknown'}
     try:
         meta=json.loads((root/'manifest.json').read_text(encoding='utf-8'))
-        if not isinstance(meta,dict):raise ValueError('Invalid manifest')
+        if not isinstance(meta,dict) or any(
+                key in meta and not isinstance(meta[key],dict)
+                for key in ('revisions','sources','sha256')):
+            raise ValueError('Invalid manifest')
         hashes={name:hashlib.sha256((root/name).read_bytes()).hexdigest() for name in REQUIRED}
     except FileNotFoundError:
         return dict(result,compatibility='missing',reason='missing_files')
