@@ -366,6 +366,9 @@ class Handler(BaseHTTPRequestHandler):
         url = urlparse(self.path)
         q = parse_qs(url.query)
         try:
+            if url.path == "/api/application-updates":
+                from . import appupdates
+                return self._json(appupdates.status())
             if url.path == "/api/health":            # for the container health check / uptime monitors
                 return self._json({"ok": True, "version": __version__, "data": config.DB_PATH.exists(),
                                    "production": self.production})
@@ -444,6 +447,19 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if not self._admit():
             return
+        if urlparse(self.path).path == "/api/application-updates/check":
+            host = self.headers.get("Host", "")
+            origin = self.headers.get("Origin")
+            expected = f"127.0.0.1:{self.server.server_address[1]}"
+            if (self.client_address[0] != "127.0.0.1" or host != expected or
+                    origin != "http://" + expected or self.headers.get("X-Workshop-Update") != "1"):
+                return self._json({"error": "forbidden"}, 403)
+            from . import appupdates
+            try:
+                channel = parse_qs(urlparse(self.path).query).get("channel", [None])[0]
+                return self._json(appupdates.check(force=True, channel=channel))
+            except ValueError as error:
+                return self._json({"error": str(error)}, 400)
         try:
             size = int(self.headers.get("Content-Length", 0))
         except ValueError:
@@ -625,6 +641,9 @@ class BoundedServer(ThreadingHTTPServer):
 
 
 def serve(host: str = "127.0.0.1", port: int = 8765, open_browser: bool = True, production: bool = False) -> None:
+    from . import appupdates
+    if host == "127.0.0.1":
+        appupdates.check()
     get_data()  # load once up front so errors (missing DB) surface immediately
     Handler.production = production
     httpd = BoundedServer((host, port), Handler, config.MAX_CONNECTIONS)
