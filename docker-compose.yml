@@ -1,0 +1,35 @@
+# Public deployment: the planner behind Caddy (automatic HTTPS). Settings: copy .env.example to .env and edit it.
+#   docker compose up -d --build          start (the first start builds the game database: a few minutes)
+#   docker compose run --rm app update    refresh the game data for a new league / patch
+#   docker compose logs -f app            access log and errors
+services:
+  app:
+    build: .
+    env_file: .env
+    environment:
+      POECRAFT_ENV: production
+      POECRAFT_TRUST_PROXY: "1"        # requests come through Caddy: client IPs are in X-Forwarded-For
+    volumes:
+      - ./data:/data                   # game database, localized game data, caches, live prices - survives restarts
+    expose:
+      - "8765"                         # reachable by Caddy only; not published on the host
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      POECRAFT_DOMAIN: ${POECRAFT_DOMAIN:-localhost}
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data               # TLS certificates
+      - caddy_config:/config
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

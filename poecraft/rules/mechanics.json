@@ -1,0 +1,142 @@
+{
+  "_comment": "Crafting rules that are NOT part of the game-data export (they live in server code). Values here are community-established; edit them if GGG changes a mechanic. Every entry used by the planner is surfaced in the UI with its accuracy status.",
+
+  "affix_limits": {"prefix": 3, "suffix": 3},
+  "magic_affix_limits": {"prefix": 1, "suffix": 1},
+
+  "rare_mod_count": {"4": 0.6667, "5": 0.25, "6": 0.0833},
+  "rare_mod_count_status": "approximate",
+  "rare_mod_count_note": "Commonly cited distribution for Chaos/Alchemy/Essence/Fossil rares (4:8/12, 5:3/12, 6:1/12). Not published by GGG.",
+
+  "magic_mod_count": {"1": 0.5, "2": 0.5},
+  "magic_mod_count_status": "approximate",
+  "magic_mod_count_note": "Alteration/Transmutation: 1 or 2 mods. 50/50 split is an assumption.",
+
+  "fossil_weight_divisor": 100,
+  "fossil_note": "Fossil tag weights are applied multiplicatively for every matching mod tag (weight/100). 0 blocks the tag.",
+
+  "resonators": {
+    "1": "Primitive Chaotic Resonator",
+    "2": "Potent Chaotic Resonator",
+    "3": "Powerful Chaotic Resonator",
+    "4": "Prime Chaotic Resonator"
+  },
+  "fossil_search_max_combo": 3,
+  "fossil_search_candidates": 7,
+  "fossils_not_modelled": [
+    "Faceted Fossil", "Tangled Fossil", "Hollow Fossil", "Glyphic Fossil", "Fractured Fossil",
+    "Gilded Fossil", "Sanctified Fossil", "Bloodstained Fossil", "Opulent Fossil"
+  ],
+
+  "essence_reforge_rare_min_level": 5,
+  "event_only_mod_markers": ["Royale"],
+  "event_only_mod_note": "Mods of the Battle Royale event (ids containing 'Royale') are left out of every mod pool: the export gives four of them normal spawn weights (e.g. MovementVelocity2Royale), but they do not roll in standard crafting. The export has no other field that marks them.",
+  "essence_note": "Screaming, Shrieking, Deafening, corruption-only and off-ladder essences (e.g. Essence of Desolation) reforge a rare directly (their currency text: 'Upgrades a normal item to rare or reforges a rare item'); lower tiers only upgrade a normal item, so they need Orb of Scouring between attempts.",
+
+  "influences": {
+    "shaper": "_shaper",
+    "elder": "_elder",
+    "crusader": "_crusader",
+    "hunter": "_basilisk",
+    "redeemer": "_eyrie",
+    "warlord": "_adjudicator"
+  },
+  "max_influences": 2,
+
+  "harvest_reforge_tags": {
+    "life": "Life", "defences": "Defence", "physical": "Physical", "fire": "Fire",
+    "cold": "Cold", "lightning": "Lightning", "chaos": "Chaos", "attack": "Attack",
+    "caster": "Caster", "speed": "Speed", "critical": "Critical", "attribute": "Attribute"
+  },
+  "harvest_price_key": "Harvest Reforge (tag)",
+  "harvest_note": "Modelled as: first mod forced from the tag, remaining mods rolled like a Chaos Orb. The real Harvest reforge algorithm is not public.",
+
+  "eldritch_tier_names": {"Lesser": 6, "Greater": 5, "Grand": 4, "Exceptional": 3, "Exquisite": 2, "Perfect": 1},
+  "eldritch_note": "Approximate: each Ember/Ichor is assumed to create exactly the tier named in its description (Lesser=T6, Greater=T5, Grand=T4, Exceptional=T3); the export has no currency-to-tier table. Crafting is assumed to happen without an Eldritch presence (presence-upgraded versions are not modelled).",
+  "eldritch_conflict_note": "tiers 2 (Exquisite) and 1 (Perfect) are reached with the Orb of Conflict, whose odds are not in the game data; the planner offers it only as a range plan when the Exceptional (tier 3) version and a Lesser currency for the other side exist on this base.",
+  "conflict_orb": "Orb of Conflict",
+  "conflict_note": "Game data: the Orb of Conflict 'Unpredictably raise[s] the strength of one Searing Exarch or Eater of Worlds modifier on an item and lower[s] the strength of another'; 'Lesser modifiers that have their strength lowered will be removed'; it 'Can only be used on items that have both a Searing Exarch and an Eater of Worlds implicit'; 'The chance of raising or lowering a modifier depends on its relative strength' - no formula is given. Not in the data, assumed: one Orb raises or lowers by exactly one tier, and the raised value meets the threshold (part of the best case).",
+
+  "influence_exalts": {
+    "shaper": "Shaper's Exalted Orb", "elder": "Elder's Exalted Orb", "crusader": "Crusader's Exalted Orb",
+    "hunter": "Hunter's Exalted Orb", "redeemer": "Redeemer's Exalted Orb", "warlord": "Warlord's Exalted Orb"
+  },
+  "influence_exalt_note": "Approximate: the Exalt's odds assume both affix sides are open (the most conservative case; with one side full the real chance is higher), and the item level the currency calls 'high-level' is not in the game data.",
+  "influence_restart_note": "A failed influence Exalt leaves the item influenced (Scouring and Annulment remove modifiers, not influence), so the plan starts over on a fresh base. Base items are not priced anywhere in the planner. Not modelled: Annulment of the wrong influenced mod followed by regular Exalted Orbs on the influenced item.",
+  "awakener_orb": "Awakener's Orb",
+  "awakener_note": "Approximate: the game data says the second item is 'reforged as a rare item with both influence types and new modifiers'; that one influenced modifier from each item is kept is the community-documented rule, not in the data. Each item is assumed to carry exactly one influenced modifier, so that modifier is the one kept.",
+  "dominance_orb": "Orb of Dominance",
+  "dominance_note": "Orb of Dominance (formerly Maven's Orb) removes one influenced modifier and upgrades another, turning a highest-tier one into an Elevated modifier. Which modifier is removed or upgraded is not in the game data, so it is offered only as a range plan: ask for the Elevated modifier as a target, e.g. 'TEXT (Elevated Elder)'.",
+  "dominance_data_note": "Game data: the Orb of Dominance 'Removes one Influenced Modifier from an item with at least two Influenced Modifiers and upgrades another Influenced Modifier'; only a highest-tier modifier becomes Elevated; it can be used on Body Armours, Boots, Gloves and Helmets. The item is not destroyed: a failure removes the target's base modifier, and the plan then redoes the preparation (an upper bound - re-adding just that modifier is not modelled). The link from the Elevated modifier to its base modifier is derived (same influence, side, group and stats); the highest tier is checked by its minimum value, so an overlapping lower tier would also pass.",
+
+  "fracturing_orb": "Fracturing Orb",
+  "fracture_min_mods": 4,
+  "fracture_note": "Approximate: the Fracturing Orb 'fractures a random modifier' on a rare with at least 4 modifiers; how that modifier is chosen is not in the game data, so every modifier on the item is assumed equally likely. The target's value is fixed with Divine Orbs before fracturing; whether a Divine Orb can change a fractured value later is not stated in the data and is assumed not to.",
+  "fracture_restart_note": "A wrong modifier fractured cannot be undone and the item cannot be fractured again ('Cannot be used on Influenced or Fractured items'), so the plan starts over on a fresh base (base price not included). Not modelled: continuing with the wrongly fractured modifier.",
+  "beastcraft_outcome_names": ["of Farrul", "of Saqawal", "of Fenumus", "of Craiceann"],
+  "beastcraft_missing": "Not supported (missing recipe data): the game data export contains no Beastcrafting recipes - not which beasts a recipe needs, not its cost, not what it adds or rerolls. Some outcome modifiers exist in mods.json (the Aspect suffixes 'of Farrul', 'of Saqawal', 'of Fenumus', 'of Craiceann', with no spawn weights), but nothing links a recipe to them.",
+  "fossil_effects": {
+    "MoreGemLevel": {"assumption": "Faceted Fossil: its added modifiers (game data 'added_mods') are assumed to join the normal pool at their own spawn weights, with the fossil's tag weights (gem x10) applied to them too - the data lists the added mods but not how they are weighted."},
+    "AbyssSocket": {"assumption": "Hollow Fossil: 'Has 1 Abyssal Socket' is forced (game data 'forced_mods'); it is a suffix in the data and is assumed to count toward the usual 4-6 mod count, like an essence's guaranteed modifier."},
+    "MoreDrop": {"assumption": "Opulent Fossil: drop-tag weight x10 (game data)."},
+    "NoTagless": {"missing": "how 'No Tagless modifiers' is applied - it is only a description, the fossil's weights say nothing about modifiers without tags"},
+    "RandomModifier": {"missing": "the random weights it applies ('Random effects revealed when resonator is fully socketed') are not in the data"},
+    "CorruptEssence": {"missing": "which Corrupt Essence modifier it adds and how it is picked (essences.json has no corruption-only flag or per-modifier chance)"},
+    "Fracture": {"missing": "which modifier 'Fracture a random modifier' picks"},
+    "LuckyMods": {"missing": "how much 'High Level modifiers are more common' changes the weights, and the exact 'lucky' value rule"},
+    "BetterSellPrice": {"no_target": "it only adds a vendor sell-price modifier ('Item sells for much more to vendors') - no stat a target can ask for"},
+    "CorruptedImplicit": {"no_target": "it corrupts the item and adds a corrupted implicit - implicit targets are outside the planner, and a corrupted item cannot be crafted further"}
+  },
+  "aisling": "Aisling (Research, rank 3)",
+  "veiled_chaos": "Veiled Chaos Orb",
+  "veiled_options": 3,
+  "veiled_side_chance": 0.5,
+  "veiled_options_note": "Approximate: the game data lists the unveiled outcomes and their spawn weights, but not how the 3 unveil options are drawn. Assumed: 3 different outcomes of the veiled modifier's side, drawn by spawn weight without replacement, never sharing a mod group with a mod already on the item. Only the generic pool ('Chosen' / 'of the Order') is used; Syndicate-member outcomes (Catarina's, It's, Aisling's ...) are not offered.",
+  "aisling_note": "Approximate: Aisling's Research craft is not in the game data at all. Modelled as requested: it adds one veiled modifier to an item with a free affix slot, without removing a mod, and the veiled modifier takes the free slot kept on the target's side. If it instead removes a random modifier (like the Veiled Exalted Orb in the data), these numbers do not apply. Not offered as a helper (slot blocking): nothing in the data supports it.",
+  "veiled_chaos_note": "Approximate: the Veiled Chaos Orb 'Reforges a rare item with new random modifiers including a random Veiled modifier' (currency text) - the whole item is rerolled, nothing is kept. Not in the data, assumed: the veiled modifier is a prefix or a suffix with 50% each, and it counts toward the usual rare mod count (4-6).",
+  "veiled_restart_note": "A wrong unveil cannot be undone except by removing the mod; the planner compares restarting with Orb of Annulment retries (uniform over the explicit mods; a removed target restarts) and uses the cheaper.",
+  "fracture_kept_note": "The fractured modifier stays: Chaos, Fossil, Essence and Harvest rerolls, Orb of Scouring and Orb of Annulment never remove it.",
+
+  "remove_crafted_cost": [["Orb of Scouring", 1]],
+  "remove_crafted_note": "Bench 'Remove Crafted Modifiers' costs 1 Orb of Scouring (crafting_bench_options: remove_crafted_mods).",
+
+  "metacrafts": {
+    "prefixes_locked": "StrMasterItemGenerationCannotChangePrefixes",
+    "suffixes_locked": "DexMasterItemGenerationCannotChangeSuffixes",
+    "no_attack": "IntMasterItemGenerationCannotRollAttackAffixes",
+    "no_caster": "StrDexMasterItemGenerationCannotRollCasterAffixes",
+    "multimod": "StrIntMasterItemGenerationCanHaveMultipleCraftedMods"
+  },
+
+  "features": [
+    {"id": "chaos_alch", "name": "Chaos Orb / Orb of Alchemy reroll", "status": "supported"},
+    {"id": "alt_regal_exalt", "name": "Orb of Alteration / Augmentation / Regal / Exalted slam", "status": "supported"},
+    {"id": "essences", "name": "Essences (guaranteed mod + random fill)", "status": "supported"},
+    {"id": "fossils", "name": "Fossils (tag weight modifiers, combos up to 3)", "status": "supported"},
+    {"id": "bench", "name": "Crafting bench (single crafted mod finish)", "status": "supported"},
+    {"id": "divine", "name": "Divine Orb roll perfection estimate", "status": "supported"},
+    {"id": "influenced_mods", "name": "Influenced mods (2 influences)", "status": "supported"},
+    {"id": "mod_count", "name": "Rare/magic mod-count distribution", "status": "approximate"},
+    {"id": "harvest", "name": "Harvest tag reforge", "status": "approximate"},
+    {"id": "annul", "name": "Orb of Annulment recovery (uniform removal, respects a metacraft lock)", "status": "supported", "note": "Optimal use computed per item state; removing a mod never invalidates the others in PoE 1, so no re-roll is needed."},
+    {"id": "lock_scour_annul", "name": "Prefixes/Suffixes Cannot Be Changed + Scour / Annul", "status": "supported", "note": "Metacraft needs a free slot on its own side and is consumed by the Scour it protects against."},
+    {"id": "lock_chaos", "name": "Prefixes/Suffixes Cannot Be Changed + Chaos Orb", "status": "approximate", "note": "Number of new mods with a locked side is not published; the normal rare distribution is assumed."},
+    {"id": "no_attack_caster", "name": "Cannot Roll Attack/Caster Modifiers + Exalt", "status": "supported"},
+    {"id": "multimod", "name": "Multimod (two bench crafts)", "status": "supported", "note": "Reroll families only (not combined with Alteration chains)."},
+    {"id": "essence_annul", "name": "Annulling an essence-guaranteed mod", "status": "approximate", "note": "Counted as a restart: the essence mod is not tracked as removable."},
+    {"id": "meta_alt", "name": "Metacraft + Alteration", "status": "not supported", "note": "Not applicable: on a magic item the metacraft itself fills the only slot of its side."},
+    {"id": "eldritch", "name": "Eldritch implicits via Embers (Searing Exarch) / Ichors (Eater of Worlds), Lesser-Exceptional", "status": "approximate", "note": "Implicit odds come from the export's spawn weights; the currency-to-tier link comes from the currency descriptions, and crafting is assumed to happen without an Eldritch presence."},
+    {"id": "conflict", "name": "Orb of Conflict for a tier 2 / tier 1 Eldritch implicit target", "status": "approximate", "note": "Range plan only (a lower cost bound, no upper bound): the odds are not in the game data."},
+    {"id": "eldritch_other", "name": "Eldritch Chaos/Exalted/Annulment (dominance), presence upgrades, Eldritch implicits on amulets", "status": "not supported", "note": "Odds or rules not in the game data export."},
+    {"id": "influence_exalts", "name": "Shaper/Elder/Conqueror Exalted Orbs (one influenced modifier, item with no influence)", "status": "approximate", "note": "Odds from influence spawn weights, assuming both affix sides open; a failure restarts on a fresh base."},
+    {"id": "awakener", "name": "Awakener's Orb (two influences)", "status": "approximate", "note": "Keeping one influenced modifier from each item is community knowledge, not in the game data."},
+    {"id": "dominance", "name": "Orb of Dominance (Maven's Orb) for an Elevated target", "status": "approximate", "note": "Range plan only (best case, uniform assumption, no upper bound): the odds are not in the game data."},
+    {"id": "elevated_missing", "name": "Elevated modifiers with no derivable base modifier (19 of 106), Orb of Dominance on an unprepared or non-influenced base", "status": "not supported", "note": "Missing outcome data / not modelled."},
+    {"id": "fracturing", "name": "Fracturing Orb (one fractured modifier, then the rest)", "status": "approximate", "note": "Which modifier is fractured is not stated in the game data ('a random modifier'); uniform is assumed."},
+    {"id": "recomb_synth", "name": "Recombinators, Synthesis", "status": "not supported"},
+    {"id": "veiled", "name": "Veiled modifiers: Aisling (Research) or Veiled Chaos Orb, then unveil", "status": "approximate", "note": "Unveil outcomes and their spawn weights are in the game data; how the 3 options are drawn, the side of a random veiled mod and Aisling's behaviour are not."},
+    {"id": "veiled_other", "name": "Veiled Exalted Orb, Aisling as a helper (slot blocking), Syndicate-member unveils (Catarina's, It's, Aisling's ...), more than one veiled target", "status": "not supported", "note": "Not modelled; the member unveils need that member's own veiled modifier."},
+    {"id": "delirium_heist", "name": "Delirium/Heist special crafts", "status": "not supported"},
+    {"id": "jewels_flasks", "name": "Jewels, flasks, maps, tinctures", "status": "not supported"}
+  ]
+}

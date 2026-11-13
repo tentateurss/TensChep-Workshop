@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PoE Craft Planner</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header>
+  <!-- back to the hub; the brand is never translated -->
+  <a class="home-link" href="/" data-i18n-title="nav.home">&larr; TensChep Workshop</a>
+  <h1 data-i18n="app.title">PoE Craft Planner</h1>
+  <span id="dataInfo" class="muted"></span>
+  <span id="priceInfo"></span>
+  <div class="lang-box">
+    <div id="langSelect" class="lang-select" role="group" aria-label="Language"></div>
+    <!-- always visible, in every language: game data is not localized yet (see poecraft/i18n.py game_text) -->
+    <div id="gameDataMarker" class="gamedata-marker"><span class="badge en-badge">EN</span>
+      <span data-i18n="gamedata.marker">Game data: English (localization source not yet wired)</span></div>
+  </div>
+</header>
+
+<main>
+  <section class="col left">
+    <div class="card" id="importCard">
+      <h2 data-i18n="import.title">Paste an item (Ctrl+C in game)</h2>
+      <textarea id="pasteBox" rows="5" data-i18n-placeholder="import.placeholder" spellcheck="false"></textarea>
+      <div class="row wrap">
+        <button id="importTargets" data-i18n="import.asTargets">Import as targets</button>
+        <button id="importHave" data-i18n="import.asHave">Import as have</button>
+        <label class="file-btn"><input type="file" id="ocrFile" accept="image/*" hidden>
+          <span data-i18n="import.ocr">Upload screenshot (Beta)</span></label>
+      </div>
+      <div id="ocrNote" class="hint"></div>
+      <div id="importResult"></div>
+    </div>
+    <div class="card">
+      <h2 data-i18n="base.title">1. Base item</h2>
+      <input id="baseSearch" type="search" data-i18n-placeholder="base.search.placeholder" autocomplete="off">
+      <select id="classFilter"><option value="" data-i18n-text="base.allClasses">All item classes</option></select>
+      <ul id="baseResults" class="list"></ul>
+      <div id="baseSelected" class="selected hidden"></div>
+      <div class="row">
+        <label><span data-i18n="base.ilvl">Item level</span> <input id="ilvl" type="number" min="1" max="100" value="86"></label>
+      </div>
+      <div class="row wrap" id="influences"></div>
+      <p class="hint" data-i18n="base.influenceHint">Up to two influences.</p>
+    </div>
+
+    <div class="card">
+      <h2 data-i18n="mods.title">2. Pick target mods</h2>
+      <div class="row">
+        <input id="modFilter" type="search" data-i18n-placeholder="mods.filter.placeholder" disabled>
+        <div class="tabs" id="affixTabs">
+          <button data-affix="" class="active" data-i18n="mods.all">All</button>
+          <button data-affix="prefix" data-i18n="mods.prefix">Prefix</button>
+          <button data-affix="suffix" data-i18n="mods.suffix">Suffix</button>
+        </div>
+      </div>
+      <label class="check"><input type="checkbox" id="rollOnly"> <span data-i18n="mods.rollOnly">only mods that can roll naturally</span></label>
+      <ul id="families" class="list families"></ul>
+    </div>
+  </section>
+
+  <section class="col right">
+    <div class="card">
+      <h2 data-i18n="targets.title">3. Targets</h2>
+      <p class="hint" data-i18n="targets.hint">Threshold applies to the first number of the mod.</p>
+      <ul id="targets" class="list targets"></ul>
+      <div id="haveList"></div>
+      <div class="row wrap tools">
+        <select id="tradeLeague" aria-label="League"></select>
+        <button id="tradeBtn" data-i18n="trade.button">Find on Trade</button>
+      </div>
+      <div id="tradeResult"></div>
+      <details class="templates">
+        <summary data-i18n="tpl.title">Templates</summary>
+        <div class="row wrap">
+          <select id="tplSelect"></select>
+          <button id="tplLoad" data-i18n="tpl.load">Load</button>
+          <button id="tplDelete" data-i18n="tpl.delete">Delete</button>
+        </div>
+        <div class="row wrap">
+          <input id="tplName" type="text" data-i18n-placeholder="tpl.namePlaceholder">
+          <button id="tplSave" data-i18n="tpl.save">Save as template</button>
+        </div>
+        <p class="hint" data-i18n="tpl.hint">Stored in this browser only.</p>
+        <div id="tplResult"></div>
+      </details>
+      <div class="row">
+        <label><span data-i18n="run.sims">Simulations</span> <select id="sims">
+          <option value="0" data-i18n-text="run.simsOff">off (fast)</option>
+          <option value="2000" selected>2 000</option>
+          <option value="5000">5 000</option>
+          <option value="20000">20 000</option>
+          <option value="100000">100 000</option>
+        </select></label>
+        <label><span data-i18n="run.objective">Objective</span> <select id="objective">
+          <option value="min_cost" selected data-i18n-text="objective.min_cost">Lowest expected cost</option>
+          <option value="min_attempts" data-i18n-text="objective.min_attempts">Fewest applications</option>
+          <option value="min_variance" data-i18n-text="objective.min_variance">Lowest bad-luck cost</option>
+        </select></label>
+        <button id="planBtn" class="primary" disabled data-i18n="run.build">Build crafting plan</button>
+      </div>
+    </div>
+
+    <div id="result"></div>
+
+    <div class="card">
+      <div class="row" style="margin-top:0">
+        <h2 style="margin:0" data-i18n="prices.title">Prices</h2>
+        <button id="priceBtn" style="margin-left:auto" data-i18n="prices.update">Update prices</button>
+      </div>
+      <div id="priceStatus" class="meta" style="margin-top:8px"></div>
+      <div class="table-wrap"><table id="priceTable"></table></div>
+      <p class="hint" data-i18n="prices.hint">Live prices come from poe.ninja.</p>
+    </div>
+
+    <div class="card">
+      <h2 data-i18n="features.title">What the planner models</h2>
+      <ul id="features" class="features"></ul>
+      <p class="hint" data-i18n="features.hint">Probabilities use mod weights from the game data.</p>
+    </div>
+  </section>
+</main>
+
+<script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+/* TensChep Workshop landing page - builds on style.css (same dark palette as the planner) */
+body.hub { min-height: 100vh; display: flex; flex-direction: column; }
+.hub-header { align-items: center; }
+.brand { color: var(--accent); font-weight: 600; font-size: 17px; letter-spacing: .6px; text-decoration: none; }
+.brand:hover { color: var(--text); }
+
+.hub-main { display: block; flex: 1; width: 100%; max-width: 1100px; margin: 0 auto; padding: 48px 20px 32px; }
+.hub-hero { text-align: center; margin-bottom: 40px; }
+.brand-title {
+  font-size: clamp(30px, 6vw, 52px); letter-spacing: 1.5px; color: var(--accent);
+  font-family: Georgia, "Times New Roman", serif; font-weight: 600;
+  text-shadow: 0 0 24px rgba(200, 164, 90, .25);
+}
+.tagline { color: var(--muted); font-size: clamp(15px, 2.4vw, 19px); margin: 10px 0 0; }
+
+.tool-grid {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+}
+.tool-card {
+  display: flex; flex-direction: column; gap: 10px; padding: 22px;
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+  transition: border-color .15s ease, transform .15s ease;
+}
+.tool-card:hover { border-color: var(--accent-2); transform: translateY(-2px); }
+.tool-card h2 { font-size: 18px; margin: 0; }
+.tool-desc { margin: 0; color: var(--text); opacity: .85; flex: 1; }
+.tool-icon svg { width: 44px; height: 44px; fill: none; stroke: var(--accent); stroke-linecap: round; stroke-linejoin: round; }
+.launch {
+  align-self: flex-start; margin-top: 6px; padding: 8px 18px; border-radius: 6px;
+  background: var(--accent-2); color: #fff; text-decoration: none; font-weight: 600; border: 1px solid var(--accent);
+}
+.launch:hover, .launch:focus-visible { background: var(--accent); color: #1a1408; }
+.more { text-align: center; margin-top: 22px; }
+.hub-footer { text-align: center; font-size: 12px; padding: 18px 20px 24px; border-top: 1px solid var(--border); }
+@media (max-width: 600px) { .hub-main { padding-top: 28px; } }

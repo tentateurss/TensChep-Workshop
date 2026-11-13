@@ -1,0 +1,71 @@
+/* Item Evaluator - builds on style.css and hub.css */
+.tool-title { font-size: 16px; margin: 0; color: var(--text); font-weight: 500; }
+.eval-main { display: flex; flex-direction: column; gap: 16px; max-width: 1100px; width: 100%; margin: 0 auto; padding: 20px; }
+#itemText { width: 100%; font-family: ui-monospace, Consolas, monospace; font-size: 12px; background: var(--panel-2);
+  color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 8px; }
+button.primary { background: var(--accent-2); border-color: var(--accent); color: #fff; font-weight: 600; }
+#result { display: flex; flex-direction: column; gap: 12px; }
+.notice { border-color: var(--warn); color: var(--warn); font-size: 15px; }
+table.ranking, table.listings { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.ranking td, table.ranking th, table.listings td, table.listings th { padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+table.ranking tr.dropped td:first-child { text-decoration: line-through; color: var(--muted); }
+.badge.core { background: var(--accent-2); color: #fff; }
+.badge.online { background: #24502a; color: #b9f0c0; }
+.badge.offline { background: var(--panel-2); color: var(--muted); }
+td.mods { font-size: 12px; color: var(--muted); }
+ol.passes { margin: 0 0 8px; padding-left: 20px; }
+@media (max-width: 700px) { table.listings td.mods { display: none; } table.listings th:last-child { display: none; } }
+
+/* the price at a glance */
+.summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; padding: 12px 16px; border-radius: var(--radius);
+  background: var(--panel); border: 1px solid var(--accent-2); }
+.summary.offline { border-color: var(--warn); }
+.summary.none { color: var(--muted); border-color: var(--border); }
+.summary-label { color: var(--muted); }
+.summary-price { font-size: 26px; font-weight: 700; color: var(--accent); }
+.summary-sub { flex-basis: 100%; color: var(--muted); font-size: 13px; }
+.summary.offline .summary-sub { color: var(--warn); }
+.compact-toggle { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; color: var(--muted); font-size: 13px; }
+
+/* compact ("overlay") mode: input + price only */
+body.compact .hub-header, body.compact .detail { display: none !important; }
+body.compact .eval-main { padding: 8px; gap: 8px; max-width: 520px; }
+body.compact .input-card { padding: 8px; }
+body.compact .meta { font-size: 12px; }
+body.compact .summary { padding: 8px 12px; }
+body.compact .summary-price { font-size: 22px; }
+body.compact .notice { font-size: 13px; }
+body.pip .eval-main { max-width: none; }
+
+/* Timeless Jewel calculator */
+.tj-facts { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-bottom: 10px; }
+.tj-tree { display: block; width: 100%; max-width: 560px; aspect-ratio: 1; margin: 10px auto; background: var(--panel-2);
+  border: 1px solid var(--border); border-radius: var(--radius); }
+.tj-tree .pt { fill: #5a5246; }
+.tj-tree .pt.k1 { fill: #a08a5c; }
+.tj-tree .pt.k2 { fill: var(--accent); }
+.tj-tree .pt.k3 { fill: #3a342b; }
+.tj-tree .sock { fill: #2c4a6e; stroke: #7fb3ff; stroke-width: 30; cursor: pointer; }
+.tj-tree .sock:hover { fill: #4a78b0; }
+.tj-tree .sock.on { fill: var(--accent); stroke: #fff; }
+.tj-tree .ring { fill: rgba(200, 164, 90, 0.08); stroke: var(--accent); stroke-width: 20; }
+table.tj-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 8px; }
+table.tj-table td { padding: 5px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+table.tj-table td:first-child { width: 38%; }
+.tj-add { color: var(--ok); }
+.small { font-size: 11px; }
+ul.tj-smalls { margin: 6px 0; padding-left: 20px; font-size: 13px; }
+.tj h3 { margin: 12px 0 4px; font-size: 14px; }
+#tjSocket { max-width: 100%; }
+@media (max-width: 700px) { table.tj-table td:first-child { width: 45%; } }
+.tj-equiv { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 8px; }
+.tj-must { vertical-align: middle; }
+
+/* notices: information about what could not be matched - neutral, one collapsible block, small text */
+.notices { border: 1px solid var(--border); border-left: 3px solid #5a7fa8; border-radius: var(--radius); background: var(--panel);
+  padding: 6px 12px; font-size: 12px; color: var(--muted); }
+.notices summary { cursor: pointer; color: #9fb8d6; font-size: 13px; }
+.notices ul { margin: 6px 0 2px; padding-left: 18px; }
+.notices li { margin: 3px 0; line-height: 1.45; }
+.copy-mod { font-size: 11px; padding: 1px 6px; margin-left: 4px; }
+.note-error { border-left: 3px solid var(--bad); padding: 4px 10px; font-size: 13px; color: var(--text); background: var(--panel); border-radius: 4px; }

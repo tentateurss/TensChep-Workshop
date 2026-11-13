@@ -1,0 +1,8 @@
+# HTTPS in front of the planner. POECRAFT_DOMAIN comes from .env (e.g. craft.example.org); Caddy gets the certificate.
+{$POECRAFT_DOMAIN} {
+	encode gzip
+	reverse_proxy app:8765 {
+		# live plan progress is streamed (NDJSON): pass it through as it comes
+		flush_interval -1
+	}
+}

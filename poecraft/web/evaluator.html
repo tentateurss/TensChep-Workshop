@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Item Evaluator · TensChep Workshop</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/hub.css">
+  <link rel="stylesheet" href="/evaluator.css">
+</head>
+<body class="hub">
+<header class="hub-header">
+  <!-- the brand is never translated -->
+  <a class="brand" href="/">&larr; TensChep Workshop</a>
+  <h1 class="tool-title" data-i18n="hub.tool.evaluator.title">Item Evaluator</h1>
+  <div class="lang-box"><div id="langSelect" class="lang-select" role="group" aria-label="Language"></div></div>
+</header>
+
+<main class="eval-main" id="evalApp">
+  <section class="card input-card">
+    <h2 class="detail" data-i18n="eval.paste">Paste an item (Ctrl+C in game)</h2>
+    <textarea id="itemText" rows="9" spellcheck="false" data-i18n-placeholder="eval.placeholder"></textarea>
+    <div class="row wrap">
+      <label class="detail"><span data-i18n="trade.league">League</span> <select id="league"></select></label>
+      <button id="evalBtn" class="primary" data-i18n="eval.button">Evaluate</button>
+      <button id="pasteBtn" data-i18n="eval.pasteEval">Paste &amp; evaluate</button>
+      <label class="compact-toggle"><input type="checkbox" id="compactToggle"> <span data-i18n="eval.compact">Compact mode</span></label>
+      <button id="pipBtn" class="hidden" data-i18n="eval.pip">Pop out</button>
+    </div>
+    <p class="hint detail" data-i18n="eval.hint">Searches the official trade site in the current league, online sellers first.</p>
+  </section>
+  <section id="result"></section>
+</main>
+<script src="/evaluator.js"></script>
+</body>
+</html>
