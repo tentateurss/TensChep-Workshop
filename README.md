@@ -385,3 +385,7 @@ unlisted items use `config/prices.json`.
 ## PoE 3.30 readiness
 
 **WAITING FOR GAME DATA**: see [upgrade report](docs/POE_3_30_UPGRADE_REPORT.md). Check without changing data: `python -m poecraft update --expect-version 3.30 --dry-run`. Remove `--dry-run` to stage, validate and promote the export with a retained backup. Stop the server before updating. Existing unversioned exports are not certified as 3.30.
+
+## Windows portable
+
+[Download Windows builds from GitHub Releases](https://github.com/tentateurss/TensChep-Workshop/releases). Python is not required for the portable EXE. See [release instructions](docs/RELEASE.md). PoE 3.30 compatibility is not yet confirmed.
