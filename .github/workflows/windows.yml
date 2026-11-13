@@ -22,6 +22,17 @@ jobs:
           .build-venv/Scripts/python.exe -m pip install pyinstaller==6.22.3
           .build-venv/Scripts/python.exe packaging/build_windows.py
       - run: python packaging/smoke_windows.py
+      - name: Download published baseline for isolated updater tests
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force .browser-tools/baseline | Out-Null
+          gh release download v1.0.0-beta.1 --pattern TensChep-Workshop-Windows-x64.zip --dir .browser-tools/baseline
+          if ($LASTEXITCODE -ne 0) { throw 'Baseline download failed' }
+          Expand-Archive .browser-tools/baseline/TensChep-Workshop-Windows-x64.zip .browser-tools/baseline/files
+          Move-Item .browser-tools/baseline/files/TensChep-Workshop .browser-tools/old-build
+      - run: python packaging/test_windows_update.py
       - uses: actions/upload-artifact@v4
         with:
           name: Windows-x64
@@ -42,4 +53,4 @@ jobs:
           path: artifacts
       - env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" artifacts/* --verify-tag --prerelease --title "TensChep Workshop v1.0.0 Beta 1" --notes-file docs/RELEASE.md
+        run: gh release create "$GITHUB_REF_NAME" artifacts/* --verify-tag --prerelease --title "TensChep Workshop v1.0.0 Beta 2" --notes-file docs/RELEASE.md
