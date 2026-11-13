@@ -16,6 +16,8 @@ Lua files are converted to JSON once, at download; the tables are stored inflate
 from __future__ import annotations
 
 import json
+import hashlib
+import uuid
 import re
 import shutil
 import time
@@ -56,10 +58,15 @@ class TimelessDataMissing(RuntimeError):
 
 # ---------------------------------------------------------------- download
 
+_downloads = {}
+
+
 def _get(url: str, timeout: int = 180) -> bytes:
     req = urllib.request.Request(url, headers={"User-Agent": config.user_agent()})
     with urllib.request.urlopen(req, timeout=timeout) as resp:
-        return resp.read()
+        raw = resp.read()
+        _downloads[url] = hashlib.sha256(raw).hexdigest()
+        return raw
 
 
 def _download_lut(jewel: str) -> bytes:
@@ -81,7 +88,7 @@ def _download_lut(jewel: str) -> bytes:
         i += 1
 
 
-def update(out_dir: Path | None = None, log=print) -> dict:
+def _update(out_dir: Path | None = None, log=print) -> dict:
     """Download and convert everything into data/timeless/ (about 35 MB to download, 70 MB on disk)."""
     out_dir = out_dir or TIMELESS_DIR
     tmp = out_dir.with_name(out_dir.name + ".tmp")
@@ -117,9 +124,20 @@ def update(out_dir: Path | None = None, log=print) -> dict:
                 "sources": {"pob": POB_DIR, "tree": TREE_URL, "stat_translations": base}, "tables": sizes,
                 "tree_nodes": len(tree["nodes"]), "sockets": len(tree["sockets"])}
     (tmp / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    manifest['revisions'] = dict(_revisions)
+    manifest['game_version'] = None  # a repository revision alone proves no PoE version
+    manifest['tree_game_version'] = None
+    manifest['downloads'] = dict(_downloads)
+    manifest['sha256'] = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in tmp.iterdir() if p.is_file() and p.name != 'manifest.json'}
+    (tmp / 'manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
+    backup = out_dir.with_name(out_dir.name + '.backup-' + uuid.uuid4().hex)
     if out_dir.exists():
-        shutil.rmtree(out_dir)
-    tmp.replace(out_dir)
+        out_dir.rename(backup)
+    try:
+        tmp.replace(out_dir)
+    except BaseException:
+        if backup.exists(): backup.rename(out_dir)
+        raise
     _clear()
     return manifest
 
@@ -248,7 +266,8 @@ def seed_templates(translations: list, lang: str) -> list[dict]:
 # ---------------------------------------------------------------- loading
 
 def available() -> bool:
-    return (TIMELESS_DIR / "manifest.json").exists()
+    from .timeless_status import status
+    return status()["compatibility"] not in ("missing", "incompatible")
 
 
 def _load(name: str):
@@ -367,3 +386,34 @@ def read(jt: int, seed: int, node_id: str) -> list[int] | None:
         half = len(entry) // 2
         entry[:half] = [_global(jt, v) for v in entry[:half]]
     return entry
+
+
+_revisions = {}
+
+
+def _revision(repository, ref):
+    try:
+        obj = json.loads(_get(f'https://api.github.com/repos/{repository}/commits/{ref}'))
+        revision = obj.get('sha', '')
+        return revision if re.fullmatch('[a-f0-9]{40}', revision) else None
+    except (OSError, ValueError):
+        return None
+
+
+def update(out_dir=None, log=print):
+    global POB_DIR, POB_LICENSE, TREE_URL, _revisions
+    original = POB_DIR, POB_LICENSE, TREE_URL
+    _downloads.clear()
+    pob = _revision('PathOfBuildingCommunity/PathOfBuilding', 'dev')
+    tree_revision = _revision('grindinggear/skilltree-export', 'master')
+    _revisions = {'pob': pob, 'tree': tree_revision}
+    try:
+        if pob:
+            base = f'https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/{pob}/'
+            POB_DIR = base + 'src/Data/TimelessJewelData/'
+            POB_LICENSE = base + 'LICENSE.md'
+        if tree_revision:
+            TREE_URL = f'https://raw.githubusercontent.com/grindinggear/skilltree-export/{tree_revision}/data.json'
+        return _update(out_dir, log)
+    finally:
+        POB_DIR, POB_LICENSE, TREE_URL = original

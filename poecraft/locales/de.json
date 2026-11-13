@@ -1046,5 +1046,20 @@
   "updates.downloading": "Download und Prüfung…",
   "updates.restarting": "Neustart…",
   "updates.verifying": "Archiv wird geprüft…",
-  "updates.preparing": "Installation wird vorbereitet…"
+  "updates.preparing": "Installation wird vorbereitet…",
+  "m.tj.version_unknown": "Ungeprüftes Ergebnis: Tabellen und Baum haben keine bestätigte passende Spielversion.",
+  "m.tj.missing_files": "Nicht berechnet: Erforderliche Timeless-Dateien fehlen.",
+  "m.tj.invalid_manifest": "Nicht berechnet: Ungültige Timeless-Metadaten.",
+  "m.tj.checksum_mismatch": "Nicht berechnet: Timeless-Prüfsumme stimmt nicht überein.",
+  "m.tj.version_mismatch": "Nicht berechnet: Tabellen oder Baum gehören zu einer anderen Spielversion.",
+  "m.tj.verified_versions": "Quellversionen und Prüfsummen stimmen mit dem Spielexport überein.",
+  "eval.tj.compatibility": "Datenkompatibilität",
+  "eval.tj.gameVersion": "Spielexport",
+  "eval.tj.revision": "PoB-Revision",
+  "m.tj.tree_mismatch": "Nicht berechnet: Bedeutende Baumknoten fehlen im Tabellenindex.",
+  "m.tj.legacy_heroic": "Nicht berechnet: Heroic-Tragedy-Daten enthalten durch Patch 3.30 ersetzte Effekte.",
+  "eval.tj.state.compatible": "Kompatibel",
+  "eval.tj.state.incompatible": "Inkompatibel",
+  "eval.tj.state.missing": "Fehlt",
+  "eval.tj.state.unverified": "Ungeprüft"
 }

@@ -276,7 +276,9 @@ def _evaluate_with_context(text: str, league: str | None = None, data: GameData 
     if league:
         lg = {"league": league, "source": "user", "known": lg["known"]}
     from .prices import Prices
-    key = (lg["league"], text.strip(), json.dumps(Prices().live_status, sort_keys=True))
+    from ..data.timeless_status import status as timeless_status
+    key = (lg["league"], text.strip(), json.dumps(Prices().live_status, sort_keys=True),
+           timeless_status().get("fingerprint"))
     with _LOCK:
         hit = _CACHE.get(key)
         if hit and hit[0] > time.monotonic():
@@ -411,6 +413,17 @@ def _notes(out: dict) -> dict:
 
 def _timeless_extras(out: dict, socket, equivalents, lg: dict) -> dict:
     """A Timeless result plus, for a socket, the effects - and, when asked, the equivalent seeds and their prices."""
+    if out.get("timeless"):
+        from ..data.timeless_status import status
+        provenance = status()
+        out = dict(out, timeless=dict(out['timeless'], provenance=provenance))
+        out['warnings'] = list(out.get('warnings', []))
+        if provenance['compatibility'] != 'compatible':
+            out['warnings'].append(M('m.tj.' + provenance['reason']))
+        if provenance['compatibility'] in ('missing', 'incompatible'):
+            out['timeless']['data'] = False
+            out['timeless'].pop('calc', None)
+            out['timeless'].pop('equivalents', None)
     if not socket:
         return _notes(out)
     out = _with_calculation(out, socket)

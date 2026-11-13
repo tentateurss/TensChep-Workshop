@@ -107,7 +107,9 @@ function equivalentsHtml(q) {
 function timelessHtml(r) {
   const t = r.timeless;
   if (!t) return "";
-  const head = `<div class="tj-facts"><span>${tt("eval.tj.jewel")}: <b>${esc(t.jewel)}</b></span>
+  const provenance = t.provenance || {};
+  const warning = `<div class="warn tj-compatibility" role="status" data-compatibility="${esc(provenance.compatibility || "unverified")}">${tt("eval.tj.compatibility")}: <b>${tt("eval.tj.state." + (provenance.compatibility || "unverified"))}</b> &middot; ${tt("eval.tj.gameVersion")}: ${esc(provenance.game_version || "?")} &middot; ${tt("eval.tj.revision")}: ${esc(provenance.revision || "?")}<p>${tt("m.tj." + (provenance.reason || "version_unknown"))}</p></div>`;
+  const head = warning + `<div class="tj-facts"><span>${tt("eval.tj.jewel")}: <b>${esc(t.jewel)}</b></span>
     <span>${tt("eval.tj.conqueror")}: <b>${esc(t.conqueror)}</b></span><span>${tt("eval.tj.seed")}: <b>${esc(t.seed)}</b></span></div>`;
   if (!t.data || !t.sockets) return `<div class="card detail"><h2>${tt("eval.tj.title")}</h2>${head}</div>`;
   const opts = `<option value="">${esc(tx("eval.tj.pick"))}</option>` + t.sockets.map((s) =>

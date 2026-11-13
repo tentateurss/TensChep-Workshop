@@ -192,6 +192,8 @@ def node_effect(version: int, seed: int, conqueror: str, nid: str, node: dict) -
         p = next((p for p in lg["nodes"] if p["id"] == want), None)
         if p:
             replace(p)
+        else:
+            out["change"] = "missing"
         return out
     attribute = node["name"] in ATTRIBUTE_NODES
     if node["kind"] == "normal" and version != 1:
@@ -236,6 +238,8 @@ def node_effect(version: int, seed: int, conqueror: str, nid: str, node: dict) -
 
 def calculate(version: int, seed: int, conqueror: str, socket_id: str) -> dict:
     """Every passive in the socket's radius with its change: keystones and notables first, then small passives."""
+    from ..data.timeless_status import require
+    provenance = require()
     if version not in T.JEWELS or conqueror not in CONQUERORS.get(version, {}):
         raise ValueError(M("m.err.tj_conqueror", jewel=version, conqueror=conqueror))
     if not valid_seed(version, seed):
@@ -249,7 +253,8 @@ def calculate(version: int, seed: int, conqueror: str, socket_id: str) -> dict:
     nodes.sort(key=lambda e: (order.get(e["kind"], 3), e["name"]))
     return {"socket": str(socket_id), "nodes": nodes,
             "counts": {k: sum(1 for e in nodes if e["kind"] == k) for k in order},
-            "missing": sum(1 for e in nodes if e["change"] == "missing")}
+            "missing": sum(1 for e in nodes if e["change"] == "missing"),
+            "provenance": provenance, "verification": "not computed" if any(e["change"] == "missing" for e in nodes) else provenance["compatibility"]}
 
 
 # ---------------------------------------------------------------- equivalent seeds
@@ -290,6 +295,8 @@ def equivalents(version: int, seed: int, socket_id: str, node_ids: list[str] | N
     so this compares the table entries of those notables across the whole seed range - one read per notable.
     {"core": [notable ids], "checked": seeds compared, "seeds": [{"seed", "matched", "of", "better"}] (exact matches
     first, then the closest), "exact": how many match every must-have}."""
+    from ..data.timeless_status import require
+    provenance = require()
     if not valid_seed(version, seed):
         lo, hi = T.SEEDS[version]
         div = T.SEED_DIVISOR.get(version, 1)
@@ -302,8 +309,9 @@ def equivalents(version: int, seed: int, socket_id: str, node_ids: list[str] | N
     cols = []
     for nid in core:
         col = T.column(version, nid)
-        if col is not None:
-            cols.append((nid, col))
+        if col is None:
+            raise T.TimelessDataMissing("Missing table entry for notable " + str(nid))
+        cols.append((nid, col))
     scores = []
     for off in range(hi - lo + 1):
         if off == own:
@@ -318,6 +326,7 @@ def equivalents(version: int, seed: int, socket_id: str, node_ids: list[str] | N
     scores.sort(key=lambda x: (-x[0], -x[1], x[2]))
     out = [{"seed": (off + lo) * div, "matched": m, "of": len(cols), "better": b} for m, b, off in scores[:limit]]
     return {"core": [nid for nid, _ in cols], "checked": hi - lo, "seeds": out,
+            "provenance": provenance, "verification": provenance["compatibility"],
             "exact": sum(1 for m, _, _ in scores if m == len(cols)) if cols else 0}
 
 

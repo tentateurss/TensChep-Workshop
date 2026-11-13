@@ -685,6 +685,8 @@ def main(argv=None) -> int:
         print("Downloading Timeless Jewel data (Path of Building's tables, the passive tree)...")
         try:
             man = timeless.update()
+            from .data.timeless_status import status as timeless_status
+            print("Timeless compatibility:", json.dumps(timeless_status(), ensure_ascii=False))
             print(f"Timeless Jewel data saved to {timeless.TIMELESS_DIR}: {man['sockets']} sockets, "
                   f"{man['tree_nodes']} passives, {len(man['tables'])} jewels")
         except (OSError, ValueError) as e:

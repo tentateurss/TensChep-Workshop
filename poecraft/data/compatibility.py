@@ -54,12 +54,9 @@ def inventory(stage, version, url):
             output.replace(target)
         sources['locale_' + code] = entry
     timeless = stage / 'timeless'
-    sources['timeless'] = {'required': False, 'version': None,
-        'compatibility': 'unverified' if timeless.exists() else 'missing',
-        'validation': 'Game/tree compatibility requires separate verification',
-        'sha256': {p.name: _sha256(p) for p in timeless.glob('*') if p.is_file()}}
-    if (timeless / 'manifest.json').exists():
-        sources['timeless']['origin'] = json.loads((timeless / 'manifest.json').read_text(encoding='utf-8')).get('sources', {})
+    from .timeless_status import status
+    sources['timeless'] = dict(status(timeless, version), required=False,
+        sha256={p.name: _sha256(p) for p in timeless.glob('*') if p.is_file()})
     report = {'game_version': version, 'sources': sources, 'fully_compatible': False}
     (stage / 'compatibility.json').write_text(json.dumps(report, indent=2), encoding='utf-8')
     return report

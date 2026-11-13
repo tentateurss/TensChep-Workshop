@@ -411,6 +411,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(_localized_prices(Prices(league=q.get("league", [None])[0]).status_json(), q.get("lang", [i18n.DEFAULT])[0]))
             if url.path == "/api/families":
                 return self._json(_families_cached(q))
+            if url.path == "/api/timeless/status":
+                from .data.timeless_status import status
+                return self._json(status())
             if url.path == "/api/timeless/tree":       # the passive tree's points, for the Timeless socket picker
                 from .data import timeless as td
                 if not td.available():

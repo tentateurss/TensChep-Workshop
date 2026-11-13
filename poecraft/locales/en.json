@@ -1046,5 +1046,20 @@
   "updates.downloading": "Downloading and verifying?",
   "updates.restarting": "Restarting?",
   "updates.verifying": "Verifying archive…",
-  "updates.preparing": "Preparing installation…"
+  "updates.preparing": "Preparing installation…",
+  "m.tj.version_unknown": "Unverified result: the tables and tree have no confirmed matching game version.",
+  "m.tj.missing_files": "Not computed: required Timeless files are missing.",
+  "m.tj.invalid_manifest": "Not computed: Timeless metadata is invalid.",
+  "m.tj.checksum_mismatch": "Not computed: Timeless file checksum mismatch.",
+  "m.tj.version_mismatch": "Not computed: Timeless tables or tree belong to a different game version.",
+  "m.tj.verified_versions": "Source versions and checksums match the game export.",
+  "eval.tj.compatibility": "Data compatibility",
+  "eval.tj.gameVersion": "Game export",
+  "eval.tj.revision": "PoB revision",
+  "m.tj.tree_mismatch": "Not computed: the tree contains notables missing from the table index.",
+  "m.tj.legacy_heroic": "Not computed: Heroic Tragedy data contains effects superseded by the official 3.30 changes.",
+  "eval.tj.state.compatible": "Compatible",
+  "eval.tj.state.incompatible": "Incompatible",
+  "eval.tj.state.missing": "Missing",
+  "eval.tj.state.unverified": "Unverified"
 }
