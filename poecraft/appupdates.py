@@ -53,12 +53,29 @@ def check(force=False, channel=None):
             saved=json.loads(path.read_text(encoding='utf-8'))
         except (OSError,ValueError):
             saved={}
+        if not isinstance(saved, dict):
+            saved={}
         chosen=channel or saved.get('channel','beta')
+        if channel is None and chosen not in ('stable','beta'):
+            chosen='beta'
         if chosen not in ('stable','beta'):
             raise ValueError('Invalid update channel')
         _status.update(channel=chosen)
-        if not force and saved.get('channel')==chosen and time.time()-saved.get('checked_at',0)<86400:
-            _status.update(state=saved.get('state','idle'),release=saved.get('release'),error=saved.get('error'))
+        if (not force and saved.get('channel')==chosen and
+                isinstance(saved.get('checked_at'), (int,float)) and
+                0 <= time.time()-saved['checked_at'] < 86400):
+            release=saved.get('release')
+            try:
+                if not isinstance(release,dict) or version(release['version'])<=version(__version__):
+                    release=None
+                else:
+                    release=dict(release,url='https://github.com/tentateurss/TensChep-Workshop/releases/tag/'+release['version'])
+            except (KeyError,ValueError,TypeError):
+                release=None
+            state=saved.get('state','idle')
+            if state=='available' and release is None:
+                state='current'
+            _status.update(state=state,release=release,error=saved.get('error'))
             return dict(_status)
         _status.update(state='checking',release=None,error=None)
     def run():

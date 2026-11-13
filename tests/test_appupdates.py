@@ -16,3 +16,28 @@ class ReleaseChecking(unittest.TestCase):
   self.assertIsNone(select([release('v0.9.0'),release('garbage'),dict(tag_name='v2.0.0',assets=[])],'1.0.0','beta'))
  def test_invalid_channel(self):
   with self.assertRaises(ValueError):select([],'1.0.0','other')
+
+class ReleaseNetwork(unittest.TestCase):
+ def test_offline_does_not_block_and_saves_channel(self):
+  import tempfile,time,json
+  from pathlib import Path
+  from unittest.mock import patch
+  from poecraft import appupdates
+  with tempfile.TemporaryDirectory() as d, patch.object(appupdates.config,'CONFIG_DIR',Path(d)), patch.object(appupdates.urllib.request,'urlopen',side_effect=OSError('offline')):
+   with appupdates._lock:appupdates._status['state']='idle'
+   appupdates.check(force=True,channel='stable')
+   for _ in range(100):
+    if appupdates.status()['state']!='checking' and (Path(d)/'application-updates.json').exists():break
+    time.sleep(.01)
+   self.assertEqual(appupdates.status()['state'],'error')
+   self.assertEqual(json.loads((Path(d)/'application-updates.json').read_text())['channel'],'stable')
+ def test_recent_cache_avoids_network(self):
+  import tempfile,time,json
+  from pathlib import Path
+  from unittest.mock import patch
+  from poecraft import appupdates
+  with tempfile.TemporaryDirectory() as d, patch.object(appupdates.config,'CONFIG_DIR',Path(d)), patch.object(appupdates.urllib.request,'urlopen') as network:
+   (Path(d)/'application-updates.json').write_text(json.dumps({'channel':'beta','checked_at':time.time(),'state':'current'}))
+   with appupdates._lock:appupdates._status['state']='idle'
+   self.assertEqual(appupdates.check()['state'],'current')
+   network.assert_not_called()
