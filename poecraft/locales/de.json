@@ -1031,5 +1031,13 @@
  "eval.notes.copyHint": "Kopiert den Modifikatortext - in den Werte-Filter der Handelsseite einfügen",
  "eval.notes.copied": "Kopiert - auf der Handelsseite einfügen",
   "m.price.league_unverified": "Die Ligaauswahl konnte nicht best?tigt werden. Sch?tzpreise werden verwendet.",
-  "m.price.league_mismatch": "Preisdaten geh?ren zu {actual}, gew?hlt ist {requested}. Sch?tzpreise werden verwendet."
+  "m.price.league_mismatch": "Preisdaten geh?ren zu {actual}, gew?hlt ist {requested}. Sch?tzpreise werden verwendet.",
+  "updates.title": "Anwendungsupdates",
+  "updates.check": "Updates pr?fen",
+  "updates.download": "Manuell herunterladen",
+  "updates.checking": "Wird gepr?ft?",
+  "updates.current": "Keine neuere Version",
+  "updates.error": "Update-Pr?fung fehlgeschlagen",
+  "updates.available": "Neue Version: ",
+  "updates.installed": "Installierte Version: "
 }

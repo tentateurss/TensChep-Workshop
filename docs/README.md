@@ -360,4 +360,4 @@ python -m unittest discover -s tests
 
 ## Подготовка PoE 3.30
 
-Статус: WAITING FOR GAME DATA. См. [отчёт](POE_3_30_UPGRADE_REPORT.md). Безопасная проверка: `python -m poecraft update --expect-version 3.30 --dry-run`; обновление: та же команда без `--dry-run`. Необязательные локали и Timeless требуют отдельной проверки соответствия. Сервер на время обновления остановить.
+Статус: WAITING FOR GAME DATA. См. отчёт (??. LIMITATIONS.md). Безопасная проверка: `python -m poecraft update --expect-version 3.30 --dry-run`; обновление: та же команда без `--dry-run`. Необязательные локали и Timeless требуют отдельной проверки соответствия. Сервер на время обновления остановить.

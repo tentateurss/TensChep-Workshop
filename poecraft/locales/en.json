@@ -1031,5 +1031,13 @@
  "eval.notes.copyHint": "Copies the modifier text - paste it into the stat filter on the trade site",
  "eval.notes.copied": "Copied - paste it on the trade site",
   "m.price.league_unverified": "League selection could not be verified; using estimates.",
-  "m.price.league_mismatch": "Snapshot belongs to {actual}, requested {requested}; using estimates."
+  "m.price.league_mismatch": "Snapshot belongs to {actual}, requested {requested}; using estimates.",
+  "updates.title": "Application updates",
+  "updates.check": "Check updates",
+  "updates.download": "Download manually",
+  "updates.checking": "Checking?",
+  "updates.current": "No newer release",
+  "updates.error": "Update check failed",
+  "updates.available": "New version: ",
+  "updates.installed": "Current version: "
 }

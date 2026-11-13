@@ -177,4 +177,4 @@ plans (one base) and grows with the number of restarts for influence plans.
 
 ## PoE 3.30 transition
 
-Current data and Timeless effects are not verified for 3.30. Partial prefix/suffix locks are not modelled. Full-lock recipes must be selected by item class and priced using the whole currency basket. See [upgrade report](POE_3_30_UPGRADE_REPORT.md). The configured simulation default is 2000; 20000 is the default production HTTP cap, not the default run count.
+Current data and Timeless effects are not verified for 3.30. Partial prefix/suffix locks are not modelled. Full-lock recipes must be selected by item class and priced using the whole currency basket. See upgrade report (??. LIMITATIONS.md). The configured simulation default is 2000; 20000 is the default production HTTP cap, not the default run count.

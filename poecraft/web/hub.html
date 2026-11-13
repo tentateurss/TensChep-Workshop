@@ -26,9 +26,14 @@
     <ul id="tools" class="tool-grid" aria-live="polite"></ul>
     <p class="hint more" data-i18n="hub.more">More tools are on the way.</p>
   </section>
+<section class="card"><h2 id="updates-title"></h2><p id="updates-status" aria-live="polite"></p>
+<select id="updates-channel"><option value="beta">Beta</option><option value="stable">Stable</option></select>
+<button id="updates-check" type="button"></button><a id="updates-link" hidden target="_blank" rel="noopener"></a>
+<pre id="updates-notes" style="white-space:pre-wrap"></pre></section>
 </main>
 
 <footer class="hub-footer muted" data-i18n="hub.footer">Fan-made tools, not affiliated with or endorsed by Grinding Gear Games.</footer>
 <script src="/hub.js"></script>
+<script src="/updates.js"></script>
 </body>
 </html>

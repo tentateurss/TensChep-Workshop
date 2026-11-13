@@ -18,3 +18,8 @@ data.backup-*/
 build/
 dist/
 *.spec
+venv/
+.updates/
+*.download
+/config/application-updates.json
+/config/application-updates.tmp
