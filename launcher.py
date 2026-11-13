@@ -19,13 +19,17 @@ def prepare():
 
 def main():
     prepare()
+    if sys.argv[1:2] == ["--apply-update"]:
+        from poecraft.installer import apply
+        apply(sys.argv[2])
+        return 0
     if sys.argv[1:3] == ['-m', 'poecraft']:
         del sys.argv[1:3]
     if len(sys.argv) > 1:
         from poecraft.__main__ import main as cli
         return cli()
     from poecraft import config
-    print('TensChep Workshop v1.0.0 Beta 1')
+    print('TensChep Workshop v1.0.0 Beta 2')
     print('PoE 3.30: WAITING FOR GAME DATA. Data:', config.DATA_DIR)
     print('Close this console or press Ctrl+C to stop the server.')
     if not config.DB_PATH.exists():

@@ -1039,5 +1039,12 @@
   "updates.current": "No newer release",
   "updates.error": "Update check failed",
   "updates.available": "New version: ",
-  "updates.installed": "Current version: "
+  "updates.installed": "Current version: ",
+  "updates.install": "Update",
+  "updates.later": "Later",
+  "updates.confirm": "Install the selected update and restart?",
+  "updates.downloading": "Downloading and verifying?",
+  "updates.restarting": "Restarting?",
+  "updates.verifying": "Verifying archive…",
+  "updates.preparing": "Preparing installation…"
 }

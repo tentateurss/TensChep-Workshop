@@ -99,3 +99,33 @@ def check(force=False, channel=None):
             pass  # read-only settings never prevent normal application startup
     threading.Thread(target=run,daemon=True).start()
     return status()
+
+_install_lock = threading.Lock()
+_install_status = {'state': 'idle', 'error': None}
+
+
+def install():
+    import sys
+    if not getattr(sys,'frozen',False):
+        raise ValueError('Portable Windows build required')
+    if not _install_lock.acquire(blocking=False):
+        raise ValueError('Installation already running')
+    selected=status().get('release')
+    if not selected:
+        _install_lock.release()
+        raise ValueError('No selected release')
+    _install_status.update(state='downloading',error=None)
+    def run():
+        try:
+            from .installer import prepare
+            prepare(selected['version'],__version__,lambda state: _install_status.update(state=state))
+            _install_status['state']='restarting'
+            time.sleep(1)
+            import os
+            os._exit(0)  # helper waits for this process before touching its directory
+        except Exception as error:
+            _install_status.update(state='error',error=str(error))
+        finally:
+            _install_lock.release()
+    threading.Thread(target=run,daemon=True).start()
+    return dict(_install_status)

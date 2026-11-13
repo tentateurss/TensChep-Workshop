@@ -368,10 +368,11 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if url.path == "/api/application-updates":
                 from . import appupdates
-                return self._json(appupdates.status())
+                import sys
+                return self._json(dict(appupdates.status(), installation=appupdates._install_status, install_supported=bool(getattr(sys,"frozen",False))))
             if url.path == "/api/health":            # for the container health check / uptime monitors
                 return self._json({"ok": True, "version": __version__, "data": config.DB_PATH.exists(),
-                                   "production": self.production})
+                                   "production": self.production, "update_instance": config.os.environ.get("POECRAFT_UPDATE_INSTANCE")})
             if url.path == "/api/meta":
                 data = get_data()
                 rules = get_rules()
@@ -447,7 +448,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if not self._admit():
             return
-        if urlparse(self.path).path == "/api/application-updates/check":
+        if urlparse(self.path).path in ("/api/application-updates/check", "/api/application-updates/install"):
             host = self.headers.get("Host", "")
             origin = self.headers.get("Origin")
             expected = f"127.0.0.1:{self.server.server_address[1]}"
@@ -456,6 +457,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"error": "forbidden"}, 403)
             from . import appupdates
             try:
+                if urlparse(self.path).path.endswith("/install"):
+                    return self._json(appupdates.install())
                 channel = parse_qs(urlparse(self.path).query).get("channel", [None])[0]
                 return self._json(appupdates.check(force=True, channel=channel))
             except ValueError as error:

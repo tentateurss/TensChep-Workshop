@@ -1033,11 +1033,18 @@
   "m.price.league_unverified": "Die Ligaauswahl konnte nicht best?tigt werden. Sch?tzpreise werden verwendet.",
   "m.price.league_mismatch": "Preisdaten geh?ren zu {actual}, gew?hlt ist {requested}. Sch?tzpreise werden verwendet.",
   "updates.title": "Anwendungsupdates",
-  "updates.check": "Updates pr?fen",
+  "updates.check": "Updates prüfen",
   "updates.download": "Manuell herunterladen",
-  "updates.checking": "Wird gepr?ft?",
+  "updates.checking": "Wird geprüft…",
   "updates.current": "Keine neuere Version",
-  "updates.error": "Update-Pr?fung fehlgeschlagen",
+  "updates.error": "Update-Prüfung fehlgeschlagen",
   "updates.available": "Neue Version: ",
-  "updates.installed": "Installierte Version: "
+  "updates.installed": "Installierte Version: ",
+  "updates.install": "Aktualisieren",
+  "updates.later": "Später",
+  "updates.confirm": "Ausgewähltes Update installieren und neu starten?",
+  "updates.downloading": "Download und Prüfung…",
+  "updates.restarting": "Neustart…",
+  "updates.verifying": "Archiv wird geprüft…",
+  "updates.preparing": "Installation wird vorbereitet…"
 }
