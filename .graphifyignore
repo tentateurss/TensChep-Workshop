@@ -1,0 +1,16 @@
+/data/
+/config/
+/.browser-tools/
+/.build-venv/
+/.codex/
+/.git/
+/build/
+/dist/
+/graphify-out/
+**/__pycache__/
+*.db
+*.bin
+*.log
+*.zip
+*.exe
+.env*

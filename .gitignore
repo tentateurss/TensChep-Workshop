@@ -24,3 +24,6 @@ venv/
 /config/application-updates.json
 /config/application-updates.tmp
 .browser-tools/
+/graphify-out/
+/.codex/
+/.graphify/
