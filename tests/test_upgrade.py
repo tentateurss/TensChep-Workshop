@@ -195,3 +195,32 @@ class PromotionSafety(unittest.TestCase):
                     updater.update('https://example.invalid','3.30')
             self.assertEqual((active/'poecraft.db').read_bytes(),b'original')
             self.assertEqual((active/'templates.json').read_text(),'personal')
+
+class LeagueWarningLocalization(unittest.TestCase):
+    def test_fallback_warnings_are_readable_and_identify_both_leagues(self):
+        from poecraft.server import _localized_prices
+        from poecraft.engine.prices import Prices
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'prices.json'
+            snap = {'_meta': {'source': ninja.API, 'league': 'Covens', 'fetched_at': ninja._now_iso(),
+                             'last_attempt': {'selection_verified': True, 'requested_league': 'Covens', 'ok': True}},
+                    'prices': {'Divine Orb': 113.8}}
+            path.write_text(json.dumps(snap))
+            with patch.dict(os.environ, {'POECRAFT_LEAGUE': ''}):
+                mismatch = Prices(live_path=path, league='Standard').status_json()
+                self.assertEqual(mismatch['live_count'], 0)
+                for lang in ('en', 'ru', 'de'):
+                    message = _localized_prices(mismatch, lang)['message']
+                    self.assertIn('Covens', message)
+                    self.assertIn('Standard', message)
+                    self.assertNotIn('?', message)
+                    if lang != 'en':
+                        self.assertFalse(message.isascii())
+                snap['_meta']['last_attempt']['selection_verified'] = False
+                path.write_text(json.dumps(snap))
+                unavailable = Prices(live_path=path, league='Covens').status_json()
+                for lang in ('en', 'ru', 'de'):
+                    message = _localized_prices(unavailable, lang)['message']
+                    self.assertNotIn('?', message)
+                    if lang != 'en':
+                        self.assertFalse(message.isascii())
