@@ -1,4 +1,6 @@
 {
+  "status.conditional": "conditional",
+  "m.act.partial_annul": "Protect up to {n} {side} modifiers → {annul} → remove remaining craft (all protected-side mods fit the cap)",
   "m.eval.timeless_unresolved": "The seed wording cannot be resolved using the current source templates. Calculation is not supported for this text; game-version compatibility remains unverified. No older templates are substituted.",
  "_meta": {
   "name": "English",
@@ -1064,5 +1066,5 @@
   "eval.tj.state.missing": "Missing",
   "eval.tj.state.unverified": "Unverified",
   "m.feature.partial_metacrafts.name": "Partial prefix/suffix locks (one or two modifiers)",
-  "m.feature.partial_metacrafts.note": "Recipes are imported, but choosing which modifiers are protected is not modelled. Partial locks are never treated as full locks."
+  "m.feature.partial_metacrafts.note": "Only when matching recipes exist: Annulment with ordinary mods, protected-side count at most the cap, then remove the craft. Fractured/crafted inputs, excess mods and other operations are not supported."
 }

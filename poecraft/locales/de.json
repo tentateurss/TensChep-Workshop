@@ -1,4 +1,6 @@
 {
+  "status.conditional": "bedingt",
+  "m.act.partial_annul": "Bis zu {n} {side}-Modifikatoren schützen → {annul} → verbleibenden Craft entfernen (alle Mods der Seite liegen im Limit)",
   "m.eval.timeless_unresolved": "Die Seed-Zeile lässt sich mit den aktuellen Quellvorlagen nicht auflösen. Die Berechnung für diesen Text wird nicht unterstützt; die Spielversion bleibt ungeprüft. Ältere Vorlagen werden nicht eingesetzt.",
  "_meta": {
   "name": "Deutsch",
@@ -1064,5 +1066,5 @@
   "eval.tj.state.missing": "Fehlt",
   "eval.tj.state.unverified": "Ungeprüft",
   "m.feature.partial_metacrafts.name": "Teilweise Präfix-/Suffix-Sperren (ein oder zwei Modifikatoren)",
-  "m.feature.partial_metacrafts.note": "Rezepte sind importiert, die Auswahl geschützter Modifikatoren wird nicht modelliert. Teilsperren gelten nicht als vollständige Sperren."
+  "m.feature.partial_metacrafts.note": "Nur mit vorhandenem Rezept: Annulment für gewöhnliche Mods innerhalb des Schutzlimits, danach den Craft entfernen. Fractured-/Crafted-Mods, überschrittene Limits und andere Aktionen werden nicht unterstützt."
 }

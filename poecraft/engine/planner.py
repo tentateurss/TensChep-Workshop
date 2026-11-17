@@ -51,6 +51,9 @@ _SHORT_KEYS = ("slam", "annul", "slam_no_attack", "slam_no_caster", "lock_annul_
 
 def _short(key: str):
     """Short label of a recovery action; unknown keys are shown as they are."""
+    if key.startswith(("lock_annul_1_", "lock_annul_2_")):
+        _, _, count, side = key.split("_")
+        return M("m.act.partial_annul", n=int(count), side=M(f"m.sides.{side}"), annul=CUR("Orb of Annulment"))
     if key not in _SHORT_KEYS:
         return key
     mc = get_rules()["metacrafts"]
@@ -715,6 +718,17 @@ class Planner:
             v = self._craft_cost(mc[rule], item_class)
             if v is not None:
                 c[key] = v
+        for craft in self.data.bench_crafts:
+            if item_class not in craft.item_classes:
+                continue
+            mod = self.data.mods.get(craft.mod_id)
+            if mod is None or len(mod.stats) != 1:
+                continue
+            stat = mod.stats[0]
+            for side, affix in (("prefix", "suffix"), ("suffix", "prefix")):
+                if (stat.id == f"item_generation_cannot_change_x_{side}es" and mod.affix == affix
+                        and stat.min == stat.max and stat.min in (1, 2)):
+                    c[f"partial_{side}_{int(stat.min)}"] = self.prices.basket(list(craft.cost))
         return c
 
     # ------------------------------------------------------- objective metrics
@@ -2685,6 +2699,11 @@ class Planner:
         """Concrete version of an MdpAction. None = something unrepresentable was destroyed (restart)."""
         k = a.key
         everything = list(mods) + list(fixed)
+        if k.startswith(("lock_annul_1_", "lock_annul_2_")):
+            _, _, cap, side = k.split("_")
+            if (protected or not 0 < sum(m.affix == side for m in everything) <= int(cap)
+                    or any(m.domain != "item" or m.essence_only for m in everything)):
+                return None
         if k == "slam" or k.startswith("slam_no_"):
             lim, restrict = L, None
             if k.startswith("slam_no_"):
@@ -2928,6 +2947,8 @@ class Planner:
         if key == "annul":
             return M("m.cond.annul", **cur)
         kind, side = key.rsplit("_", 1)            # lock_annul_prefix -> ("lock_annul", "prefix")
+        if kind in ("lock_annul_1", "lock_annul_2"):
+            kind = "lock_annul"
         return M(f"m.cond.{kind}_{side}", **cur)
 
     @staticmethod
@@ -2945,6 +2966,8 @@ class Planner:
 
     def _act_label(self, key: str) -> Text:
         """Label of a recovery action (the MDP's English labels, as messages with game-data names)."""
+        if key.startswith(("lock_annul_1_", "lock_annul_2_")):
+            return _short(key)
         mc = self.rules["metacrafts"]
         cur = dict(exalt=CUR("Exalted Orb"), annul=CUR("Orb of Annulment"), scour=CUR("Orb of Scouring"),
                    chaos=CUR("Chaos Orb"))

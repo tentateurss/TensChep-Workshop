@@ -95,6 +95,8 @@ class GroupedPool:
         protected: the subset of `existing` that is fractured - Annulment cannot pick it and a locked Scour keeps
         it (other fixed mods removed by those actions still mean RESTART)."""
         self.targets = targets
+        self.partial_locks_safe = not any(m.domain != "item" or m.essence_only
+                                          for m in (*existing, *track, *protected))
         self.np_prot = sum(m.affix == "prefix" for m in protected)
         self.ns_prot = sum(m.affix == "suffix" for m in protected)
         existing_keys = {_key(m) for m in existing}
@@ -404,6 +406,18 @@ class RecoveryMDP:
         n, outs = gp.annul(s)
         if n:
             add("annul", "Orb of Annulment", c["annul"], outs)
+        # Only ordinary mods, all within the cap; clear the craft after each Annul.
+        if self.gp.partial_locks_safe and not (gp.np_prot or gp.ns_prot):
+            for keep, count, free in (("prefix", np_, ns_ < L["suffix"]), ("suffix", ns_, np_ < L["prefix"])):
+                for cap in (1, 2):
+                    price = c.get(f"partial_{keep}_{cap}")
+                    if price is None or not free or not 0 < count <= cap:
+                        continue
+                    n, outs = gp.annul(s, locked=keep, extra=1)
+                    if n > 1:
+                        add(f"lock_annul_{cap}_{keep}", f"Protect up to {cap} {keep} modifiers → Annul → remove craft",
+                            price + c["annul"] + (1 - 1 / n) * c["remove_crafted"], outs,
+                            apps=2.0 + (1 - 1 / n))
         for keep, meta, free in (("prefix", "meta_p", ns_ < L["suffix"]), ("suffix", "meta_s", np_ < L["prefix"])):
             if meta not in c or not free:
                 continue
