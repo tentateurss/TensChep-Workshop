@@ -8,6 +8,8 @@ const $ = (sel) => (state.pip && state.pip.document.querySelector(sel)) || docum
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
 const L = {code: "en", strings: {}, en: {}, langs: []};
 const state = {result: null, text: "", pip: null, socket: null, tree: null, eqNodes: null};
+let evaluationGeneration = 0;
+let languageGeneration = 0;
 
 function lookup(key) {
   if (L.code !== "en" && typeof L.strings[key] === "string") return [L.strings[key], false];
@@ -41,7 +43,13 @@ function summaryHtml(r) {
   const conv = s.chaos != null && s.price.currency !== "chaos" ? ` <span class="muted">≈ ${esc(fmtC(s.chaos))}</span>` : "";
   const sub = s.offline_only ? tt("eval.summary.offline") : tt("eval.summary.online", {n: esc(s.online)});
   return `<div class="summary ${s.offline_only ? "offline" : ""}"><span class="summary-label">${tt("eval.summary.cheapest")}</span>
-    <span class="summary-price">${fmtPrice(s.price)}</span>${conv}<span class="summary-sub">${sub}</span></div>`;
+    <span class="summary-price">${fmtPrice(s.price)}</span>${conv}<span class="summary-sub">${sub}</span>
+    ${s.sample_count ? `<span class="summary-sub">${tt("eval.sampleRange", {lo: esc(fmtC(s.sample_min)), hi: esc(fmtC(s.sample_max)), n: s.sample_count})}</span>` : ""}
+    <span class="summary-sub">${tt("eval.asking")}</span>
+    ${r.value_share ? `<span class="summary-sub">${tt("eval.valueTolerance", {p: Math.round(r.value_share * 100)})}</span>` : ""}
+    ${s.match_quality ? `<span class="summary-sub match-quality">${tt("eval.match." + s.match_quality)}</span>` : ""}
+    ${s.relaxed ? `<span class="summary-sub relaxed-mods">${tt("eval.relaxedMods", {mods: s.dropped.map(en).join("; ")})}</span>` : ""}
+    ${r.kind === "unique" ? `<span class="summary-sub">${tt("m.eval.unique_scope")}</span>` : ""}</div>`;
 }
 
 function listingsHtml(r) {
@@ -176,10 +184,11 @@ function renderResult() {
   if (!r) return;
   const out = [];
   if (r.message) out.push(`<div class="card notice">${en(r.message)}</div>`);
+  if (r.unidentified) out.push(`<div class="card notice">${tt("m.eval.unidentified")}</div>`);
   const it = r.item || {};
   const head = [it.name, it.type].filter(Boolean).map(esc).join(" · ");
   if (head) {
-    out.push(`<div class="meta"><b>${head}</b>${it.ilvl ? ` · ${tt("eval.ilvl", {n: it.ilvl})}` : ""} · ${tt("eval.league", {league: esc(r.league)})}` +
+    out.push(`<div class="meta item-heading"><b>${head}</b>${it.ilvl ? ` · ${tt("eval.ilvl", {n: it.ilvl})}` : ""} · ${tt("eval.league", {league: esc(r.league)})}` +
              `${r.cached ? ` · <span class="muted">${tt("eval.cached")}</span>` : ""}</div>`);
   }
   if (r.timeless) out.push(timelessHtml(r));
@@ -192,11 +201,11 @@ function renderResult() {
   out.push(listingsHtml(r));
   if ((r.ranking || []).length) {
     const dropped = new Set(((r.passes || []).slice(-1)[0] || {}).dropped || []);
-    out.push(`<div class="card detail"><h2>${tt("eval.ranking")}</h2><p class="hint">${tt("eval.rankingHint")}</p>
-      <table class="ranking"><thead><tr><th>${tt("eval.col.property")}</th><th>${tt("eval.col.why")}</th><th></th></tr></thead><tbody>
+    out.push(`<div class="card detail"><h2>${tt("eval.ranking")}</h2><p class="hint">${tt("eval.rankingHint")}</p><p class="hint">${tt("eval.rankHeuristic")}</p>
+      <div class="table-wrap"><table class="ranking"><thead><tr><th>${tt("eval.col.property")}</th><th>${tt("eval.col.why")}</th><th></th></tr></thead><tbody>
       ${r.ranking.map((e) => `<tr class="${dropped.has(e.label) ? "dropped" : ""}"><td>${en(e.label)}</td><td class="muted">${en(e.why)}</td>
         <td>${e.core ? `<span class="badge core">${tt("eval.core")}</span>` : dropped.has(e.label) ? `<span class="badge">${tt("eval.droppedBadge")}</span>` : ""}</td></tr>`).join("")}
-      </tbody></table></div>`);
+    </tbody></table></div></div>`);
   }
   if ((r.passes || []).length) {
     out.push(`<div class="card detail"><h2>${tt("eval.passes")}</h2><ol class="passes">${r.passes.map((p) =>
@@ -213,6 +222,9 @@ function renderResult() {
 async function evaluate(withSocket = false, equivalents = null) {
   const text = $("#itemText").value.trim();
   if (!text) return;
+  const generation = ++evaluationGeneration;
+  const league = $("#league").value;
+  const language = L.code;
   $("#evalBtn").disabled = true;
   const same = text === state.text;
   const prev = state.result && state.result.timeless;
@@ -221,26 +233,30 @@ async function evaluate(withSocket = false, equivalents = null) {
   $("#result").innerHTML = `<div class="card muted">${tt(eq ? "eval.tj.equivBusy" : document.body.classList.contains("compact") || state.pip ? "eval.busyShort" : "eval.busy")}</div>`;
   try {
     const r = await fetch("/api/evaluate", {method: "POST", headers: {"Content-Type": "application/json", "X-Poecraft-Lang": L.code},
-      body: JSON.stringify({text, lang: L.code, league: $("#league").value || null, equivalents: eq,
+      body: JSON.stringify({text, lang: language, league: league || null, equivalents: eq,
         socket: (withSocket === true || (prev && prev.calc)) && same ? state.socket : null})});
     const j = await r.json();
+    if (generation !== evaluationGeneration || league !== $("#league").value || language !== L.code || text !== $("#itemText").value.trim()) return;
     if (!r.ok) throw new Error(j.error || r.statusText);
     state.result = j; state.text = text;
     renderResult();
   } catch (e) {
+    if (generation !== evaluationGeneration) return;
     $("#result").innerHTML = `<div class="card error">${en(e.message)}</div>`;
   } finally {
-    $("#evalBtn").disabled = false;
+    if (generation === evaluationGeneration) $("#evalBtn").disabled = false;
   }
 }
 
 async function setLang(code) {
+  const generation = ++languageGeneration;
   const loc = await (await fetch(`/api/locale?lang=${encodeURIComponent(code)}`)).json();
+  if (generation !== languageGeneration) return;
   Object.assign(L, {code: loc.code, strings: loc.strings, en: loc.en});
   try { localStorage.setItem("poecraft.lang", loc.code); } catch (e) { /* not persisted */ }
   renderStatic();
   // the result's texts come from the server in a language: ask again (cached there) in the new one
-  if (state.result && state.text) evaluate(); else renderResult();
+  if ($("#itemText").value.trim()) evaluate(); else renderResult();
 }
 
 async function init() {
@@ -251,7 +267,7 @@ async function init() {
   try {
     const lg = await (await fetch("/api/trade/leagues")).json();
     $("#league").innerHTML = `<option value="">${esc(tx("trade.auto").replace("{league}", lg.league))}</option>` +
-      lg.known.filter((l) => l !== lg.league).map((l) => `<option value="${esc(l)}">${esc(l)}</option>`).join("");
+      [...new Set([lg.league, ...lg.known])].map((l) => `<option value="${esc(l)}">${esc(l)}</option>`).join("");
   } catch (e) { $("#league").innerHTML = `<option value="">—</option>`; }
 }
 
@@ -313,8 +329,20 @@ try { state.socket = localStorage.getItem("poecraft.tjSocket") || null; } catch 
 $("#compactToggle").addEventListener("change", (e) => setCompact(e.target.checked));
 $("#pasteBtn").addEventListener("click", pasteAndEvaluate);
 $("#itemText").addEventListener("paste", () => {
-  // in compact mode a paste is the whole interaction: evaluate right away
-  if (document.body.classList.contains("compact") || state.pip) setTimeout(evaluate, 0);
+  setTimeout(evaluate, 0);
+});
+$("#itemText").addEventListener("input", () => {
+  ++evaluationGeneration;
+  state.result = null;
+  $("#result").innerHTML = "";
+  $("#evalBtn").disabled = false;
+});
+$("#league").addEventListener("change", () => {
+  const equivalents = state.result?.timeless?.equivalents ? (state.eqNodes || []) : null;
+  ++evaluationGeneration;
+  state.result = null;
+  $("#result").innerHTML = "";
+  if ($("#itemText").value.trim()) evaluate(true, equivalents);
 });
 $("#itemText").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) evaluate(); });
 if ("documentPictureInPicture" in window) {

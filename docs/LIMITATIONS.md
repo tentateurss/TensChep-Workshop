@@ -169,6 +169,8 @@ plans (one base) and grows with the number of restarts for influence plans.
 
 ## Uncertain or not verifiable from the data
 
+- Item Evaluator: Unique-сравнение учитывает имя/базу, identified и распознанное состояние corruption; все rolls, сокеты и особые варианты пока не фильтруются. Широкое сравнение явно отмечается возле цены. Rare-приоритет по стоимости воспроизведения — эвристика; числовые фильтры начинаются примерно с 90% скопированных значений. Диапазон показанных объявлений не является доверительным интервалом цены продажи.
+
 - Orb of Dominance / Orb of Conflict odds: nothing in the export; the plans show ranges, and a range plan is recommended only if its worst case beats the best ordinary plan - which no range plan can today, because none has an upper bound.
 - Aisling's Research craft: whether it removes a mod (as the Veiled Exalted Orb does) or only adds one, and which side its veiled mod takes. Nothing about it is in the export (see b).
 - Whether an influence Exalt can be applied after an Eldritch implicit: the data doesn't say, so it is treated as not supported (see e).

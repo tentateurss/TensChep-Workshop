@@ -310,8 +310,13 @@ def _summary(out: dict) -> dict | None:
     cheapest = min(pool, key=lambda l: l["chaos"] if l.get("chaos") is not None else float("inf"))
     last = out["passes"][-1] if out.get("passes") else {}
     n_online = last.get("total") if last.get("status") == "online" and last.get("total") else len(online)
+    values = [l["chaos"] for l in pool if l.get("chaos") is not None]
     return {"price": cheapest["price"], "chaos": cheapest.get("chaos"), "online": n_online, "offline_only": not online,
-            "shown": len(listings)}
+            "shown": len(listings), "sample_min": min(values) if values else None,
+            "sample_max": max(values) if values else None, "sample_count": len(values),
+            "relaxed": bool(last.get("dropped")), "dropped": last.get("dropped", []),
+            "match_quality": "category" if out.get("kind") in ("base", "unique", "other") else
+                             "relaxed" if last.get("dropped") else "filtered"}
 
 
 def _base_result(lg: dict) -> dict:
@@ -329,6 +334,11 @@ def _evaluate(text: str, lg: dict, data: GameData) -> dict:
     out["_status"] = _status_filters(text)
     if out["_status"]:
         out["warnings"].append(M("m.eval.status", what=J([M(f"eval.status.{k}") for k in out["_status"]], ", ")))
+    unidentified = any(_norm(l) in ("unidentified", "неопознано", "nicht identifiziert") for l in h["flat"])
+    if unidentified:
+        out["unidentified"] = True
+        out["_status"]["identified"] = {"option": "false"}
+        out["warnings"].append(M("m.eval.unidentified"))
     names = _all_names()
     hits = [names[_norm(l)] for l in h["head"] if _norm(l) in names]
     # Timeless Jewels: the value is in the seed - searched by jewel + conqueror + seed, effects from the calculator
@@ -343,6 +353,8 @@ def _evaluate(text: str, lg: dict, data: GameData) -> dict:
         base = next((x for x in hits if x[2] != TIMELESS_BASE), None) or _contained_base(h["head"], names)
         return _unique(out, h, base, lg)
     parsed = parse_item_text(text, data) if not h["kind"] else {"warnings": []}
+    if unidentified and parsed.get("base_id"):
+        return _by_type(out, data.bases[parsed["base_id"]].name, lg, "base", parsed)
     if parsed.get("base_id") and parsed.get("rarity") in ("rare", "magic") and (parsed.get("targets")
                                                                                or parsed.get("extra_implicits")):
         return _rare(out, parsed, lg, data)
@@ -564,6 +576,9 @@ def _by_type(out: dict, type_name: str, lg: dict, kind: str, parsed) -> dict:
     out.update(kind=kind, item={"type": type_name})
     if parsed:
         out["item"].update(ilvl=parsed.get("ilvl"), influences=parsed.get("influences", []))
+        out["warnings"].extend(parsed.get("warnings", []))
+        if parsed.get("rarity") in ("rare", "magic"):
+            out["warnings"].append(M("m.eval.base_only"))
     if kind == "currency":                   # poe.ninja's price next to the listings (live data only)
         from .prices import Prices
         p = Prices()
@@ -578,6 +593,8 @@ def _by_type(out: dict, type_name: str, lg: dict, kind: str, parsed) -> dict:
             misc = {INFLUENCE_FILTERS[i]: {"option": "true"} for i in parsed.get("influences", [])}
             misc["ilvl"] = {"min": parsed["ilvl"]}
             q["filters"] = {"misc_filters": {"filters": misc}}
+            if parsed.get("rarity") in ("normal", "magic", "rare"):
+                q["filters"]["type_filters"] = {"filters": {"rarity": {"option": parsed["rarity"]}}}
         return {"query": q, "sort": {"price": "asc"}}
     try:
         p = {"status": "online", "dropped": [], "total": None}
@@ -633,18 +650,23 @@ def _unique(out: dict, h: dict, base: tuple | None, lg: dict) -> dict:
     base_name = base[0] if base else None
     base_names = {_norm(base_name)} | {_norm(i18n.game_text("base", base[2], base_name, c)[0]) for c in ("ru", "de")} \
         if base else set()
-    name = next((l for l in h["head"] if _norm(l) not in base_names), None)
+    name = next((l for l in h["head"] if _norm(l) not in base_names and
+                 _norm(l) not in ("unidentified", "неопознано", "nicht identifiziert")), None)
     ascii_name = bool(name) and all(ord(ch) < 128 for ch in name)
     ilvl = next((int(m.group(1)) for l in h["flat"] if (m := FIELD["ilvl"].match(l))), None)
     if not ascii_name and not base_name:
         out.update(kind="unknown", message=M("m.eval.unknown_item", lines=" / ".join(h["head"])))
         return out
     out.update(kind="unique", item={"name": name, "type": base_name, "ilvl": ilvl})
-    if not ascii_name:
+    out["warnings"].append(M("m.eval.unique_scope"))
+    if not ascii_name and name:
         out["warnings"].append(M("m.eval.unique_name", base=base_name))
 
     def make(status):
-        q = {"status": {"option": status}, "filters": {"type_filters": {"filters": {"rarity": {"option": "unique"}}}}}
+        q = {"status": {"option": status}, "filters": {
+            "type_filters": {"filters": {"rarity": {"option": "unique"}}},
+            "misc_filters": {"filters": {"identified": {"option": "false" if out.get("unidentified") else "true"},
+                                         "corrupted": {"option": "false"}}}}}
         if base_name:
             q["type"] = base_name
         if ascii_name:
@@ -660,6 +682,7 @@ def _unique(out: dict, h: dict, base: tuple | None, lg: dict) -> dict:
 
 
 def _rare(out: dict, parsed: dict, lg: dict, data: GameData) -> dict:
+    out["value_share"] = VALUE_SHARE
     base = data.bases[parsed["base_id"]]
     # (a "presence" line is the upgrade of an implicit already read: the implicit's own line describes it)
     read = [l for l in parsed["lines"] if l.get("matched") and l["kind"] != "presence"]

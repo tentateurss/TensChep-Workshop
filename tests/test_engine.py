@@ -1617,6 +1617,49 @@ Item Level: 86
         # the importer's notes about the planner's "have" mode are not shown in a price check
         self.assertFalse([w for w in r["warnings"] if w.startswith("Crafted modifier imported as a target")])
 
+    def test_normal_base_and_unidentified_items_keep_known_category(self):
+        self.run_eval("Item Class: Body Armours\nRarity: Normal\nVaal Regalia\n--------\nItem Level: 86\n", found=lambda p,n:1)
+        q = self.searches[-1]["query"]
+        self.assertEqual(q["filters"]["type_filters"]["filters"]["rarity"]["option"], "normal")
+        r = self.run_eval(self.BOOTS + "\nUnidentified\n", found=lambda p,n:1)
+        q = self.searches[-1]["query"]
+        self.assertEqual(r["kind"], "base")
+        self.assertEqual(q["filters"]["misc_filters"]["filters"]["identified"]["option"], "false")
+        self.assertEqual(q["filters"]["type_filters"]["filters"]["rarity"]["option"], "rare")
+        self.assertFalse(q.get("stats"))
+        self.assertTrue(any("Hidden modifiers" in w for w in r["warnings"]))
+
+    def test_unidentified_unique_does_not_invent_a_name_or_rolls(self):
+        r = self.run_eval("Item Class: Body Armours\nRarity: Unique\nVaal Regalia\n--------\nItem Level: 86\n--------\nUnidentified\nCorrupted\n", found=lambda p,n:1)
+        q = self.searches[-1]["query"]
+        self.assertNotIn("name", q)
+        self.assertEqual(q["type"], "Vaal Regalia")
+        self.assertFalse(q.get("stats"))
+        misc = q["filters"]["misc_filters"]["filters"]
+        self.assertEqual((misc["identified"]["option"],misc["corrupted"]["option"]), ("false","true"))
+        self.assertTrue(any("Rolls, sockets" in w for w in r["warnings"]))
+
+    def test_unknown_mod_fallback_preserves_the_parser_warning(self):
+        r = self.run_eval("Item Class: Body Armours\nRarity: Rare\nDoom Veil\nVaal Regalia\n--------\nItem Level: 86\n--------\nGrants a completely unknown effect\n", found=lambda p,n:1)
+        self.assertEqual(r["kind"], "base")
+        self.assertTrue(any("unknown effect" in w for w in r["warnings"]))
+        self.assertTrue(any("base/category" in w for w in r["warnings"]))
+
+    def test_rare_relaxation_keeps_both_valuable_mods_and_labels_the_sample(self):
+        from unittest import mock
+        from poecraft.engine import evaluator
+        def cost(base, ilvl, inf, target, kind):
+            return (250 if "movement" in target["key"] else 100 if "life" in target["key"] else 5, "roll")
+        with mock.patch.object(evaluator, "_mod_cost", side_effect=cost):
+            r = self.run_eval(self.BOOTS, found=lambda p,n:2 if n>=3 else 0)
+        core = [e["label"] for e in r["ranking"] if e["core"]]
+        self.assertEqual(len(core), 2)
+        self.assertTrue(all(c not in search["dropped"] for c in core for search in r["passes"]))
+        self.assertTrue(r["summary"]["relaxed"])
+        self.assertEqual(r["summary"]["match_quality"], "relaxed")
+        self.assertEqual(r["summary"]["sample_count"], 1)
+        self.assertLessEqual(r["summary"]["sample_min"], r["summary"]["sample_max"])
+
     def test_stops_as_soon_as_something_is_found(self):
         r = self.run_eval(self.BOOTS, found=lambda p, n: 0 if n == 1 else 3)
         self.assertEqual(len(self.searches), 2)
@@ -1635,6 +1678,9 @@ Item Level: 86
         self.assertEqual((r["summary"]["price"]["amount"], r["summary"]["price"]["currency"]), (40, "chaos"))
         self.assertEqual((r["summary"]["online"], r["summary"]["offline_only"]), (4, False))
         self.assertGreater(r["listings"][2]["chaos"], 90)               # divines converted to chaos
+        self.assertEqual(r["summary"]["sample_min"], 40)  # exclude cheaper offline offers from online sample
+        self.assertEqual(r["summary"]["sample_max"], r["listings"][2]["chaos"])
+        self.assertEqual(r["summary"]["sample_count"], 3)
         self.assertEqual(r["listings"][0]["mods"], ["+80 to maximum Life"])
 
     def test_offline_fallback_when_no_online_seller(self):
@@ -1722,6 +1768,8 @@ Historic
             q = self.searches[0]["query"]
             self.assertEqual((r["kind"], q.get("name"), q.get("type")), ("unique", name, "Prismatic Jewel"))
             self.assertEqual(q["filters"]["type_filters"]["filters"]["rarity"]["option"], "unique")
+            self.assertEqual(q["filters"]["misc_filters"]["filters"]["identified"]["option"], "true")
+            self.assertEqual(q["filters"]["misc_filters"]["filters"]["corrupted"]["option"], "false")
             self.assertFalse(q.get("stats"))                            # by name only, no mod filters
 
     def test_crafted_hybrid_in_stat_order_on_a_helmet(self):
