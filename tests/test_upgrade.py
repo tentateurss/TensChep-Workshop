@@ -224,3 +224,22 @@ class LeagueWarningLocalization(unittest.TestCase):
                     self.assertNotIn('?', message)
                     if lang != 'en':
                         self.assertFalse(message.isascii())
+
+class ClassSpecificMetacraftIds(unittest.TestCase):
+    def test_role_variants_use_class_cost_without_matching_partial_locks(self):
+        p = object.__new__(Planner)
+        p.rules = {'metacrafts': {'prefixes_locked': 'full'}}
+        full = ('item_generation_cannot_change_prefixes', 1, 1)
+        partial = ('item_generation_cannot_change_x_prefixes', 1, 1)
+        mods = {name: SimpleNamespace(stats=(stat,), affix='suffix') for name, stat in
+                [('full', full), ('fullB', full), ('fullC', full), ('partial', partial)]}
+        p.data = SimpleNamespace(mods=mods, bench_crafts=[
+            SimpleNamespace(mod_id='partial', item_classes=['Ring', 'Belt'], cost=[('Divine Orb', 1)]),
+            SimpleNamespace(mod_id='full', item_classes=['Bow'], cost=[('Divine Orb', 4), ('Sacred Orb', 1)]),
+            SimpleNamespace(mod_id='fullB', item_classes=['Body Armour'], cost=[('Divine Orb', 4), ('Blessed Orb', 4)]),
+            SimpleNamespace(mod_id='fullC', item_classes=['Ring'], cost=[('Divine Orb', 4), ('Exalted Orb', 8)])])
+        p.prices = SimpleNamespace(basket=lambda xs: sum({'Divine Orb': 100, 'Sacred Orb': 3,
+                                                       'Blessed Orb': 1, 'Exalted Orb': 10}[n]*v for n,v in xs))
+        for cls, cost in [('Bow', 403), ('Body Armour', 404), ('Ring', 480)]:
+            with self.subTest(item_class=cls): self.assertEqual(p._craft_cost('full', cls), cost)
+        self.assertIsNone(p._craft_cost('full', 'Belt'))

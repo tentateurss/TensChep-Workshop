@@ -1061,5 +1061,7 @@
   "eval.tj.state.compatible": "Kompatibel",
   "eval.tj.state.incompatible": "Inkompatibel",
   "eval.tj.state.missing": "Fehlt",
-  "eval.tj.state.unverified": "Ungeprüft"
+  "eval.tj.state.unverified": "Ungeprüft",
+  "m.feature.partial_metacrafts.name": "Teilweise Präfix-/Suffix-Sperren (ein oder zwei Modifikatoren)",
+  "m.feature.partial_metacrafts.note": "Rezepte sind importiert, die Auswahl geschützter Modifikatoren wird nicht modelliert. Teilsperren gelten nicht als vollständige Sperren."
 }

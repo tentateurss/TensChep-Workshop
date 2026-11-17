@@ -1061,5 +1061,7 @@
   "eval.tj.state.compatible": "Compatible",
   "eval.tj.state.incompatible": "Incompatible",
   "eval.tj.state.missing": "Missing",
-  "eval.tj.state.unverified": "Unverified"
+  "eval.tj.state.unverified": "Unverified",
+  "m.feature.partial_metacrafts.name": "Partial prefix/suffix locks (one or two modifiers)",
+  "m.feature.partial_metacrafts.note": "Recipes are imported, but choosing which modifiers are protected is not modelled. Partial locks are never treated as full locks."
 }

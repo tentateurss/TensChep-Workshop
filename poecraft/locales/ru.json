@@ -1061,5 +1061,7 @@
   "eval.tj.state.compatible": "Совместимо",
   "eval.tj.state.incompatible": "Несовместимо",
   "eval.tj.state.missing": "Отсутствует",
-  "eval.tj.state.unverified": "Не подтверждено"
+  "eval.tj.state.unverified": "Не подтверждено",
+  "m.feature.partial_metacrafts.name": "Частичная блокировка префиксов/суффиксов (один или два мода)",
+  "m.feature.partial_metacrafts.note": "Рецепты импортированы, но выбор защищаемых модов не моделируется. Частичные блокировки не считаются полными."
 }

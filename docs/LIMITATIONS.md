@@ -177,7 +177,18 @@ plans (one base) and grows with the number of restarts for influence plans.
 
 ## PoE 3.30 transition
 
-Current data and Timeless effects are not verified for 3.30. Partial prefix/suffix locks are not modelled. Full-lock recipes must be selected by item class and priced using the whole currency basket. See upgrade report (??. LIMITATIONS.md). The configured simulation default is 2000; 20000 is the default production HTTP cap, not the default run count.
+Изолированный staging RePoE **3.30.0.2.2** проверен 17 ноября 2026 года: версия до/после загрузки, SHA-256, SQLite integrity_check и восстановление временной копии. Активная база пользователя не обновлялась. Импорт не означает готовность всей модели крафта.
+
+- Полные блокировки выбираются по классу и точным stat-полям, включая новые mod ID вариантов. Цена всей корзины: оружие 4 Divine + 1 Sacred; броня/колчаны 4 Divine + 4 Blessed; украшения 4 Divine + 8 Exalted.
+- Частичные блокировки одного/двух модов импортируются (1/2 Divine), но **не поддерживаются** планировщиком. Экспорт не задаёт достаточный алгоритм выбора защищённых модов. Другие stat ID исключают подмену полной блокировки. Статус показан в перечне механик EN/RU/DE.
+- Essence of Trickery импортирована; достоверность применения и взаимодействий не подтверждена. Mycelium Core — база самоцвета, вне поддерживаемого оборудования Craft Planner.
+- RU/DE локализация прошла существующую проверку совместимости. Новый источник Timeless seed-шаблонов не содержит прежней русской строки Xibaqua: два сценария вставки старого текста не проходят. Timeless остаётся unverified.
+- В новом mods.json у GrantsCatAspectCrafted/30 нулевые значения stat вместо прежних 20/30. Два теста распознавания Aspect of the Cat не проходят; Beastcraft требует отдельной сверки без подстановки старых значений.
+- На старой базе: **231 тест OK**. На изолированной новой: 231 тест, **1 failure** (старое ожидание цены полной блокировки 2 Divine) и **4 errors** (две пары сценариев выше). Полная поддержка 3.30 не подтверждена.
+
+Следующие задачи: определить алгоритм частичных блокировок и добавить аналитические/симуляционные эталоны; проверить Trickery и ограничения применения; независимо проверить удаление модов Annulment/Chaos и взаимодействие Attack/Caster metacraft; адаптировать Beastcraft и русские Timeless-шаблоны к подтверждённым данным; обновить независимые ожидания стоимости по классам и добиться полного прогона на 3.30. Timeless требует подтверждения таблиц, дерева и эталонных эффектов.
+
+Стоимость и новые варианты подтверждены [официальными patch notes 3.30](https://www.pathofexile.com/forum/view-thread/4013680) и строками экспорта. Обязательные файлы не содержат независимых версий: их compatibility остаётся unverified при подтверждённой общей версии индекса и проверенных SHA-256. Число симуляций по умолчанию — 2000; 20000 — производственный лимит HTTP.
 
 ## Timeless: version validation
 

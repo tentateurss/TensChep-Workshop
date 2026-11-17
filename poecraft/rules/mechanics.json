@@ -137,6 +137,7 @@
     {"id": "veiled", "name": "Veiled modifiers: Aisling (Research) or Veiled Chaos Orb, then unveil", "status": "approximate", "note": "Unveil outcomes and their spawn weights are in the game data; how the 3 options are drawn, the side of a random veiled mod and Aisling's behaviour are not."},
     {"id": "veiled_other", "name": "Veiled Exalted Orb, Aisling as a helper (slot blocking), Syndicate-member unveils (Catarina's, It's, Aisling's ...), more than one veiled target", "status": "not supported", "note": "Not modelled; the member unveils need that member's own veiled modifier."},
     {"id": "delirium_heist", "name": "Delirium/Heist special crafts", "status": "not supported"},
+    {"id": "partial_metacrafts", "name": "Partial prefix/suffix locks (one or two modifiers)", "status": "not supported", "note": "Recipes are imported, but choosing which modifiers are protected is not modelled. Partial locks are never treated as full locks."},
     {"id": "jewels_flasks", "name": "Jewels, flasks, maps, tinctures", "status": "not supported"}
   ]
 }

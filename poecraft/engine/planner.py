@@ -695,6 +695,13 @@ class Planner:
     def _craft_cost(self, mod_id: str, item_class: str | None = None) -> float | None:
         craft = next((b for b in self.data.bench_crafts if b.mod_id == mod_id and
                       (item_class is None or item_class in b.item_classes)), None)
+        if craft is None and item_class and mod_id in getattr(self, 'rules', {}).get('metacrafts', {}).values():
+            reference = self.data.mods.get(mod_id)
+            if reference and reference.stats:
+                craft = next((b for b in self.data.bench_crafts
+                              if item_class in b.item_classes and b.mod_id in self.data.mods
+                              and self.data.mods[b.mod_id].affix == reference.affix
+                              and self.data.mods[b.mod_id].stats == reference.stats), None)
         return self.prices.basket(list(craft.cost)) if craft else None
 
     def _mdp_costs(self, item_class: str | None = None) -> dict:
