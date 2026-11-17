@@ -1,4 +1,5 @@
 {
+  "m.eval.timeless_unresolved": "Die Seed-Zeile lässt sich mit den aktuellen Quellvorlagen nicht auflösen. Die Berechnung für diesen Text wird nicht unterstützt; die Spielversion bleibt ungeprüft. Ältere Vorlagen werden nicht eingesetzt.",
  "_meta": {
   "name": "Deutsch",
   "flag": "🇩🇪"

@@ -63,7 +63,7 @@ class SpecialData:
 def _raw_mod(mid: str, m: dict) -> dict:
     return {"id": mid, "name": m.get("name") or "", "domain": m.get("domain", ""),
             "affix": m.get("generation_type", ""), "type": m.get("type", ""),
-            "required_level": m.get("required_level", 1), "text": m.get("text") or "",
+            "required_level": m.get("required_level", 1), "text": m.get("text") or m.get("name") or "",
             "groups": m.get("groups", []), "tags": m.get("implicit_tags", []),
             "spawn_weights": [(s["tag"], s["weight"]) for s in m.get("spawn_weights", [])],
             "stats": m.get("stats", [])}
@@ -103,13 +103,13 @@ def get_special(raw_dir: Path = config.RAW_DIR) -> SpecialData:
     stamp = [{"size": s.stat().st_size, "mtime": s.stat().st_mtime} for s in srcs]
     try:
         cached = json.loads(CACHE_PATH.read_text(encoding="utf-8"))
-        if cached.get("source") == stamp:
+        if cached.get("schema") == 2 and cached.get("source") == stamp:
             return SpecialData(cached["data"])
     except (OSError, ValueError):
         pass
     data = _build(raw_dir)
     try:
-        CACHE_PATH.write_text(json.dumps({"source": stamp, "data": data}), encoding="utf-8")
+        CACHE_PATH.write_text(json.dumps({"schema": 2, "source": stamp, "data": data}), encoding="utf-8")
     except OSError:
         pass                                   # the cache is an optimisation only
     return SpecialData(data)

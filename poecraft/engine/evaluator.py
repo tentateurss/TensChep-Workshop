@@ -369,7 +369,9 @@ def _timeless(out: dict, info: dict | None, lg: dict) -> dict:
     from . import timeless as tj
     out.update(kind="timeless")
     if not info:
-        out["message"] = M("m.eval.timeless_unread")
+        out["message"] = J([M("m.eval.timeless_unread"), M("m.eval.timeless_unresolved")], " ")
+        out["calculation_status"] = "not computed"
+        out["warnings"].append(M("m.eval.timeless_unresolved"))
         return out
     out["item"] = {"name": info["jewel"], "type": "Timeless Jewel"}
     lo, hi = td.SEEDS[info["version"]]

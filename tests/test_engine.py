@@ -15,6 +15,7 @@ from poecraft.engine.context import PoolEntry, Target  # noqa: E402
 from poecraft.engine.simulate import Simulator, satisfies  # noqa: E402
 
 LIMITS = {"prefix": 3, "suffix": 3}
+LEGACY_RU_SEEDS = json.loads((Path(__file__).parent / "fixtures/timeless_ru_329.json").read_text(encoding="utf-8"))
 
 
 def mod(mid, affix, stat, lo=1, hi=10, group=None, tags=()):
@@ -711,7 +712,7 @@ class SpecialMechanics(unittest.TestCase):
 
     def test_beastcraft_target_follows_the_real_data_path(self):
         from poecraft.engine.planner import Infeasible
-        aspect = next(m for m in self.special.beast_outcomes if "Aspect of the Cat" in m.text)
+        aspect = next(m for m in self.special.beast_outcomes if m.id == "GrantsCatAspectCrafted")
         spec = {"signature": aspect.signature, "beastcraft": True}
         if self.special.recipes:             # the export gained recipes: the plan must contain a Beastcraft step
             best = self.planner.plan(self.base.id, 86, [], [spec])["strategies"][0]
@@ -764,19 +765,20 @@ class SpecialMechanics(unittest.TestCase):
         import io
         from contextlib import redirect_stdout
         from poecraft.__main__ import _targets_from_cli
-        from poecraft.engine.context import ItemContext
+        from poecraft.engine.context import ItemContext, generic_text
         from poecraft.engine.planner import Infeasible
         from poecraft.server import _families
         ctx = ItemContext(self.data, self.rules, self.base, 86, [])
         with redirect_stdout(io.StringIO()):                 # CLI: an unmarked target that only a beast gives
-            specs = _targets_from_cli(ctx, ["Aspect of the Cat"])
+            aspect = next(m for m in self.special.beast_outcomes if m.id == "GrantsCatAspectCrafted")
+            specs = _targets_from_cli(ctx, [generic_text(aspect.text)])
         self.assertTrue(specs[0].get("beastcraft"))
         with self.assertRaises(Infeasible) as cm:
             self.planner.plan(self.base.id, 86, [], specs)
         self.assertIn("not supported (missing recipe data)", str(cm.exception).lower())
         # UI: the mod list shows the outcome with the reason, and features name Beastcrafting on its own line
         fams = _families({"base": [self.base.id], "ilvl": ["86"]})["families"]
-        cat = next(f for f in fams if f.get("beastcraft") and "Aspect of the Cat" in f["label"])
+        cat = next(f for f in fams if f.get("key") == "beastcraft|GrantsCatAspectCrafted")
         self.assertIn("no Beastcrafting recipes", cat["not_supported"])
         rows = [f for f in self.planner.plan(self.base.id, 86, [], [
             {"signature": "prefix|base_maximum_life", "min": 100}])["features"] if f["name"] == "Beastcrafting"]
@@ -2038,7 +2040,8 @@ class TimelessConverters(unittest.TestCase):
         self.assertEqual((info["seed"], info["conqueror"]), (12000, "Kaom"))
 
     @unittest.skipUnless((config.DATA_DIR / "timeless" / "manifest.json").exists(), "Timeless data not downloaded")
-    def test_russian_advanced_copy_and_yo(self):
+    @unittest.mock.patch("poecraft.data.timeless.conquerors", return_value=LEGACY_RU_SEEDS)
+    def test_russian_advanced_copy_and_yo(self, _templates):
         from poecraft.engine import timeless as tj
         info = tj.parse("{ Уникальное свойство }\nОмыт в крови 2000(100-8000) жертв во имя Шибаквы\n")
         self.assertEqual((info["version"], info["seed"], info["conqueror"]), (1, 2000, "Xibaqua"))
@@ -2160,7 +2163,8 @@ class TimelessCalculator(unittest.TestCase):
         self.assertTrue(eq["seeds"][0]["url"].startswith("https://www.pathofexile.com/trade/search/Allflame?q="))
         self.assertFalse(eq["closest"])
 
-    def test_russian_paste_and_evaluator_calculation(self):
+    @unittest.mock.patch("poecraft.data.timeless.conquerors", return_value=LEGACY_RU_SEEDS)
+    def test_russian_paste_and_evaluator_calculation(self, _templates):
         from unittest import mock
         from poecraft.data import trade
         from poecraft.engine import evaluator, timeless as tj
@@ -3220,7 +3224,11 @@ class Recovery(unittest.TestCase):
         self.assertEqual(o["p_keep_targets"], 1.0)                 # the Life prefix always survives
         self.assertEqual(len(o["outcomes"]), 1)
         self.assertIn("1 prefix(es) / 0 suffix(es)", o["outcomes"][0]["state"])
-        self.assertAlmostEqual(o["action_cost"], 2 * 150 + 0.5)    # 2 Divine (metacraft) + Scouring, config prices
+        # Independent export lookup: the class and full-lock stat, not an old global price.
+        craft = next(b for b in self.data.bench_crafts if self.base.item_class in b.item_classes
+                     and any(s.id == "item_generation_cannot_change_prefixes" for s in self.data.mods[b.mod_id].stats))
+        expected = self.planner.prices.basket(list(craft.cost)) + self.planner.prices.get("Orb of Scouring")
+        self.assertAlmostEqual(o["action_cost"], expected)
         refill = o["cost_to_finish_this_item"]                     # Exalt/Annul refill of both suffixes
         self.assertIsNotNone(refill)
         self.assertGreater(refill, o["action_cost"])
