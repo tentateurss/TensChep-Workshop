@@ -6,7 +6,7 @@
   <title>PoE Craft Planner</title>
   <link rel="stylesheet" href="/style.css">
 </head>
-<body>
+<body class="planner">
 <header>
   <!-- back to the hub; the brand is never translated -->
   <a class="home-link" href="/" data-i18n-title="nav.home">&larr; TensChep Workshop</a>
@@ -37,6 +37,9 @@
     </div>
     <div class="card">
       <h2 data-i18n="base.title">1. Base item</h2>
+      <label class="league-field"><span data-i18n="planner.league">League for prices and Trade</span>
+        <select id="tradeLeague" aria-label="League"><option value="" data-i18n="planner.autoLeague">Automatic</option></select>
+      </label>
       <input id="baseSearch" type="search" data-i18n-placeholder="base.search.placeholder" autocomplete="off">
       <select id="classFilter"><option value="" data-i18n-text="base.allClasses">All item classes</option></select>
       <ul id="baseResults" class="list"></ul>
@@ -70,7 +73,6 @@
       <ul id="targets" class="list targets"></ul>
       <div id="haveList"></div>
       <div class="row wrap tools">
-        <select id="tradeLeague" aria-label="League"></select>
         <button id="tradeBtn" data-i18n="trade.button">Find on Trade</button>
       </div>
       <div id="tradeResult"></div>

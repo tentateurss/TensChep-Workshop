@@ -1,4 +1,8 @@
 {
+  "planner.compareHint": "Eine hervorgehobene Strategie auswählen, um ihre Schritte zu sehen. Auf schmalen Bildschirmen lässt sich die Tabelle seitlich scrollen.",
+  "planner.dataVersion": "Spieldaten: {version}",
+  "planner.league": "Liga für Preise und Handel",
+  "planner.autoLeague": "Automatisch",
   "status.conditional": "bedingt",
   "m.act.partial_annul": "Bis zu {n} {side}-Modifikatoren schützen → {annul} → verbleibenden Craft entfernen (alle Mods der Seite liegen im Limit)",
   "m.eval.timeless_unresolved": "Die Seed-Zeile lässt sich mit den aktuellen Quellvorlagen nicht auflösen. Die Berechnung für diesen Text wird nicht unterstützt; die Spielversion bleibt ungeprüft. Ältere Vorlagen werden nicht eingesetzt.",

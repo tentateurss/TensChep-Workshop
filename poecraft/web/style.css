@@ -178,3 +178,46 @@ details.templates > summary { cursor: pointer; color: var(--muted); }
 /* ---- link back to the TensChep Workshop hub */
 .home-link { color: var(--muted); text-decoration: none; font-size: 13px; letter-spacing: .4px; }
 .home-link:hover { color: var(--accent); }
+
+/* Planner: readable controls, result metrics and route on desktop and narrow screens. */
+.planner { --muted: #b1a795; }
+.planner main { max-width: 1800px; margin: 0 auto; grid-template-columns: minmax(340px, 440px) minmax(0, 1fr); gap: 24px; padding: 24px; }
+.planner .card { border-radius: 12px; padding: 20px; box-shadow: 0 5px 20px #0002; }
+.planner h2 { font-size: 16px; line-height: 1.5; }
+.planner :is(input:not([type=checkbox]), select, button) { min-height: 36px; }
+.planner :is(button, input, select, summary, tr.pick):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.planner .league-field { display: grid; gap: 6px; margin-bottom: 16px; color: var(--muted); font-size: 12px; }
+.planner .league-field select { width: 100%; color: var(--text); }
+.planner #baseResults li { padding: 10px 8px; gap: 12px; }
+.planner .families li { padding: 10px 4px; grid-template-columns: minmax(0, 1fr) auto; }
+.planner :is(.families details, .targets li > span) { min-width: 0; overflow-wrap: anywhere; }
+.planner .tiers { padding: 8px; border-radius: 6px; background: var(--bg); line-height: 1.7; }
+.planner .summary { gap: 10px; align-items: stretch; margin: 18px 0; }
+.planner .summary > .stat { flex: 1 1 130px; padding: 12px 14px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; }
+.planner .summary > .stat:first-child { border-color: var(--accent-2); }
+.planner .summary .label { margin-bottom: 5px; }
+.planner .summary .value { font-size: 16px; }
+.planner .steps > li { margin-bottom: 12px; padding: 12px 12px 12px 30px; }
+.planner .steps h3 { font-size: 15px; }
+.planner .steps .action { line-height: 1.7; }
+.planner .branch { padding: 10px 12px; border-left: 2px solid var(--bad); line-height: 1.6; }
+.planner details.recovery { padding: 10px; border: 1px solid var(--border); border-radius: 6px; }
+.planner tr.pick { cursor: pointer; }
+.planner tr.pick:hover { background: var(--panel-2); }
+.planner tr.pick.active { background: #c8a45a14; box-shadow: inset 3px 0 var(--accent); }
+.planner :is(th, td) { padding: 10px 8px; }
+.planner .strategy-table { table-layout: fixed; min-width: 680px; }
+.planner .strategy-table th { white-space: normal; overflow-wrap: anywhere; }
+.planner .strategy-table th:first-child { width: 30%; }
+.planner .strategy-table th:last-child { width: 30%; }
+.planner .strategy-reason summary { cursor: pointer; line-height: 1.6; }
+@media (max-width: 1000px) {
+  .planner main { grid-template-columns: minmax(0, 1fr); padding: 16px; gap: 16px; }
+}
+@media (max-width: 480px) {
+  .planner .card { padding: 14px; }
+  .planner .targets li { grid-template-columns: minmax(0, 1fr) auto; }
+  .planner .targets li > span:first-child { grid-column: 1 / -1; }
+  .planner .row { flex-wrap: wrap; }
+  .planner select { max-width: 100%; }
+}

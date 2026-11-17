@@ -98,6 +98,7 @@ function applyStatic() {
 
 function renderAll() {
   renderHeader();
+  renderOcrNote();
   if (state.prices) renderPrices(state.prices);
   renderFamilies();
   renderTargets();
@@ -132,7 +133,8 @@ function renderClassOptions() {     // item classes have no locale data yet: "[E
 function renderHeader() {
   const meta = state.meta;
   if (!meta) return;
-  $("#dataInfo").innerHTML = tt("header.data", {source: esc(meta.data.source), fetched: esc(meta.data.fetched_at)}) + ` ? Game data: ${esc(meta.data.game_version || "unverified")} (target 3.30)`;
+  $("#dataInfo").textContent = tx("planner.dataVersion", {version: meta.data.game_version || tx("eval.tj.state.unverified")});
+  $("#dataInfo").title = tx("header.data", {source: meta.data.source, fetched: meta.data.fetched_at});
   $("#features").innerHTML = meta.features.map((f) =>
     `<li>${statusBadge(f.status)} ${en(f.name)}${f.note ? ` <span class="muted">— ${en(f.note)}</span>` : ""}</li>`).join("");
 }
@@ -159,12 +161,15 @@ function renderPrices(p) {
 }
 
 async function loadPrices(tries = 0) {
+  const league = $("#tradeLeague").value;
   try {
-    const p = await api(`/api/prices?lang=${L.code}`);
+    const p = await api(`/api/prices?lang=${L.code}&league=${encodeURIComponent(league)}`);
+    if (league !== $("#tradeLeague").value) return;
     renderPrices(p);
     // the server refreshes prices in the background at startup: re-read the local status a few times
     if (p.state !== "live" && tries < 6) setTimeout(() => loadPrices(tries + 1), 3000);
   } catch (e) {
+    if (league !== $("#tradeLeague").value) return;
     $("#priceStatus").innerHTML = `<div class="error">${en(e.message)}</div>`;
   }
 }
@@ -173,7 +178,9 @@ async function updatePrices() {
   $("#priceBtn").disabled = true;
   $("#priceStatus").innerHTML = tt("prices.contacting");
   try {
-    renderPrices(await api(`/api/prices/update?lang=${L.code}`, {method: "POST"}));
+    const league = $("#tradeLeague").value;
+    const p = await api(`/api/prices/update?lang=${L.code}&league=${encodeURIComponent(league)}`, {method: "POST"});
+    if (league === $("#tradeLeague").value) renderPrices(p);
   } catch (e) {
     $("#priceStatus").innerHTML = `<div class="error">${en(e.message)}</div>`;
   } finally {
@@ -471,10 +478,17 @@ function deleteTemplate() {
 
 // ------------------------------------------------------------------- Find on Trade (official trade site)
 async function loadTradeLeagues() {
+  const saved = localStorage.getItem("poecraft.plannerLeague") || "";
+  if (saved) {
+    $("#tradeLeague").add(new Option(saved, saved));
+    $("#tradeLeague").value = saved;
+  }
   try {
     const r = await api("/api/trade/leagues");
     $("#tradeLeague").innerHTML = `<option value="">${esc(tx("trade.auto", {league: r.league}))}</option>` +
-      r.known.filter((l) => l !== r.league).map((l) => `<option value="${esc(l)}">${esc(l)}</option>`).join("");
+      [...new Set([r.league, ...r.known, ...(saved ? [saved] : [])])].map((l) => `<option value="${esc(l)}">${esc(l)}</option>`).join("");
+    $("#tradeLeague").value = saved;
+    loadPrices();
   } catch (e) { /* the button still works: the server picks the league */ }
 }
 async function findOnTrade() {
@@ -580,6 +594,7 @@ async function buildPlan() {
   try {
     const body = {
       lang: L.code,
+      league: $("#tradeLeague").value || null,
       base: state.base, ilvl: state.ilvl, influences: state.influences, sims: +$("#sims").value,
       objective: $("#objective").value,
       targets: state.targets.map((t) => ({signature: t.signature, min: t.min === "" ? null : +t.min, label: t.label,
@@ -589,7 +604,11 @@ async function buildPlan() {
                                          ...(t.special_fossil ? {fossil: t.special_fossil} : {}), ...(t.beastcraft ? {beastcraft: true} : {})})),
     };
     if (state.have.length) body.have = state.have.map((h) => h.id);       // imported "have" mods: recovery mode
-    state.result = await streamPlan(state.have.length ? "/api/recover" : "/api/plan", body, renderProgress);
+    const result = await streamPlan(state.have.length ? "/api/recover" : "/api/plan", body, renderProgress);
+    if (body.league !== ($("#tradeLeague").value || null)) return;
+    state.result = result;
+    if (result.language !== L.code) await localizeResult();
+    if (!state.result || body.league !== ($("#tradeLeague").value || null)) return;
     state.shown = 0;
     renderResult();
     if (state.result.prices) renderPrices(state.result.prices);
@@ -606,10 +625,15 @@ async function buildPlan() {
 async function localizeResult() {
   // the computed plan is kept language-free on the server: re-render it in the new language (no re-planning)
   if (!state.result || state.result.language === L.code) return;
+  const previous = state.result;
+  const language = L.code;
   try {
-    state.result = await api("/api/localize", {method: "POST", headers: {"Content-Type": "application/json"},
+    const result = await api("/api/localize", {method: "POST", headers: {"Content-Type": "application/json"},
                                                body: JSON.stringify({lang: L.code, result_id: state.result.result_id})});
+    if (state.result !== previous || L.code !== language) return;
+    state.result = result;
   } catch (e) {
+    if (state.result !== previous || L.code !== language) return;
     state.result = null;
     $("#result").innerHTML = `<div class="card"><div class="warn">${tt("plan.expired")} ${en(e.message)}</div></div>`;
   }
@@ -639,6 +663,7 @@ function stepBody(st) {
 
 function renderResult() {
   const r = state.result;
+  if (!r) return;
   if (r.have) return renderRecovery(r);                     // "Import as have": a recovery plan for that item
   const s = r.strategies[state.shown];
   const objLabel = tt(`objective.${r.objective.key}`);
@@ -661,13 +686,13 @@ function renderResult() {
     const range = sc && sc.lo != null && sc.hi != null ? `${fmtC(sc.lo)}–${fmtC(sc.hi)}` : "—";
     const flags = c.flags.map((f) => `<span class="badge approximate" title="${esc(f)}">${en(f.split(":")[0])}</span>`).join(" ");
     return `
-    <tr class="${i !== undefined ? "pick" : ""} ${i === state.shown ? "active" : ""}" ${i !== undefined ? `data-s="${i}"` : ""}>
+    <tr class="${i !== undefined ? "pick" : ""} ${i === state.shown ? "active" : ""}" ${i !== undefined ? `data-s="${i}" tabindex="0" aria-label="${esc(c.name)}"` : ""}>
       <td>${c.why === "RECOMMENDED" ? "★ " : ""}${en(c.name)} ${flags}</td>
       ${c.cost_range ? `<td class="num" colspan="3" title="${esc(c.cost_range.low_reason + "; " + c.cost_range.high_reason)}">${en(c.cost_range.text)}</td>` : `
       <td class="num">${fmtC(c.cost)}</td>
       <td class="num">${sc ? fmtC(sc.mean) : "—"}</td>
       <td class="num">${range}</td>`}
-      <td class="muted">${c.why === "RECOMMENDED" ? tt("table.recommended") : en(c.why)}</td>
+      <td class="muted">${c.why === "RECOMMENDED" ? tt("table.recommended") : `<details class="strategy-reason"><summary>${en(c.why.split(";")[0])}</summary>${en(c.why)}</details>`}</td>
     </tr>`;
   }).join("");
   const cb = s.cost_breakdown;
@@ -706,7 +731,8 @@ function renderResult() {
     </div>
     <div class="card">
       <h2>${tt("table.title")}</h2>
-      <div class="table-wrap"><table>
+      <p class="hint">${tt("planner.compareHint")}</p>
+      <div class="table-wrap"><table class="strategy-table">
         <thead><tr><th>${tt("table.col.strategy")}</th><th class="num">${tt("table.col.fast")}</th><th class="num">${tt("table.col.sim")}</th><th class="num">${tt("table.col.range")}</th><th>${tt("table.col.why")}</th></tr></thead>
         <tbody>${rows}</tbody></table></div>
       ${(r.not_supported || []).map((n) => `<div class="meta"><span class="badge not-supported">${tt("plan.notSupported")}</span> ${en(n.name)} — ${en(n.reason)}</div>`).join("")}
@@ -753,6 +779,25 @@ $("#targets").addEventListener("click", (e) => {
 });
 $("#planBtn").addEventListener("click", buildPlan);
 $("#priceBtn").addEventListener("click", updatePrices);
-$("#result").addEventListener("click", (e) => { const tr = e.target.closest("tr[data-s]"); if (tr) { state.shown = +tr.dataset.s; renderResult(); } });
+$("#tradeLeague").addEventListener("change", () => {
+  localStorage.setItem("poecraft.plannerLeague", $("#tradeLeague").value);
+  state.result = null;
+  state.prices = null;
+  $("#result").innerHTML = "";
+  $("#priceInfo").textContent = tx("prices.contacting");
+  $("#priceStatus").textContent = tx("prices.contacting");
+  $("#priceTable").innerHTML = "";
+  loadPrices();
+});
+$("#result").addEventListener("click", (e) => {
+  const tr = e.target.closest("tr[data-s]");
+  if (tr && !e.target.closest("details")) { state.shown = +tr.dataset.s; renderResult(); }
+});
+$("#result").addEventListener("keydown", (e) => {
+  if ((e.key === "Enter" || e.key === " ") && e.target.matches("tr[data-s]")) {
+    e.preventDefault(); state.shown = +e.target.dataset.s; renderResult();
+    document.querySelector(`#result tr[data-s="${state.shown}"]`)?.focus();
+  }
+});
 
 init().catch((e) => { document.body.insertAdjacentHTML("afterbegin", `<div class="error">${esc(e.message)}</div>`); });

@@ -474,9 +474,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"error": f"request body larger than {config.MAX_BODY} bytes"}, 413)
         if urlparse(self.path).path == "/api/prices/update":
             if not self.production:      # public server: prices refresh in the background, never per click
-                ninja.update()           # respects the on-disk cache, so repeated clicks do not hit poe.ninja
+                ninja.update(league=parse_qs(urlparse(self.path).query).get("league", [None])[0])
             lang = parse_qs(urlparse(self.path).query).get("lang", [i18n.DEFAULT])[0]
-            return self._json(_localized_prices(Prices().status_json(), lang))
+            league = parse_qs(urlparse(self.path).query).get("league", [None])[0]
+            return self._json(_localized_prices(Prices(league=league).status_json(), lang))
         if urlparse(self.path).path == "/api/evaluate":
             # Item Evaluator: listings for a pasted item from the trade site (cached 5 min; searches are rate-limited)
             lang = i18n.DEFAULT
@@ -572,7 +573,7 @@ class Handler(BaseHTTPRequestHandler):
             if not _plan_lock.acquire(timeout=config.PLAN_QUEUE_WAIT):
                 raise Busy()
             try:
-                planner = Planner(sims=sims, progress=stream)
+                planner = Planner(prices=Prices(league=body.get("league")), sims=sims, progress=stream)
                 if urlparse(self.path).path == "/api/recover":
                     raw = planner.recover(body["base"], int(body.get("ilvl", 86)), body.get("influences", []),
                                           body.get("targets", []), body.get("have", []),

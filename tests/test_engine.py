@@ -2415,6 +2415,33 @@ class UserFlows(unittest.TestCase):
         conn.close()
         return resp.status, raw
 
+    def test_planner_and_recovery_use_the_explicit_price_league(self):
+        from unittest import mock
+        from poecraft import server
+        from poecraft.engine.prices import Prices
+        from poecraft.data.repository import get_data
+        base = get_data().base_by_name("Vaal Regalia")
+        body = {"base": base.id, "ilvl": 86, "sims": 0, "league": "Covens",
+                "targets": [{"signature": "prefix|base_maximum_life", "min": 80}]}
+        with mock.patch.object(server, "Prices", side_effect=lambda **kw: Prices(use_live=False, **kw)) as factory:
+            for path in ("/api/plan", "/api/recover"):
+                if path.endswith("recover"):
+                    body["have"] = ["IncreasedLife12", "StunRecovery6", "ChaosResist6"]
+                code, raw = self.req("POST", path, body)
+                self.assertEqual(code, 200, raw)
+            self.assertEqual(factory.call_args_list, [mock.call(league="Covens"), mock.call(league="Covens")])
+
+    def test_price_refresh_keeps_the_requested_league(self):
+        from unittest import mock
+        from poecraft import server
+        from poecraft.engine.prices import Prices
+        with mock.patch.object(server.ninja, "update") as refresh, \
+                mock.patch.object(server, "Prices", side_effect=lambda **kw: Prices(use_live=False, **kw)) as factory:
+            code, raw = self.req("POST", "/api/prices/update?league=Covens")
+            self.assertEqual(code, 200, raw)
+            refresh.assert_called_once_with(league="Covens")
+            factory.assert_called_once_with(league="Covens")
+
     def test_hub_planner_import_plan_trade_link(self):
         st, hub = self.req("GET", "/")
         st_js, js = self.req("GET", "/hub.js")
