@@ -21,9 +21,11 @@ await p.locator('#planBtn').click();
 if((await request).postDataJSON().league!=='Covens')throw Error('league not forwarded');
 await p.locator('#result .summary .big').waitFor({state:'visible',timeout:60000});
 if((await p.locator('#result').innerText()).includes('m.act.'))throw Error('untranslated result');
+await p.locator('#result .comparison > summary').click();
 await p.locator('#result .strategy-reason summary').first().click();
 if(!await p.locator('#result .strategy-reason').first().evaluate(e=>e.open))throw Error('reason did not open');
 await p.locator('#result tr[data-s]').last().focus();await p.keyboard.press('Enter');
+await p.locator('#result .comparison > summary').click();
 const scenes=[];
 for(const lang of ['en','ru','de']){
  await p.locator('#langSelect [data-lang="'+lang+'"]').click();await p.waitForTimeout(700);

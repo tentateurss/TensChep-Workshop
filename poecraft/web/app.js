@@ -654,11 +654,11 @@ function stepBody(st) {
     st.cost ? tt("step.expected", {c: fmtC(st.cost)}) : ""].filter(Boolean).join(" · ");
   return `<h3>${st.kind === "recovery" ? `<span class="badge conditional">${tt("step.conditional")}</span> ` : ""}${en(st.title)} ${st.status !== "computed" ? statusBadge(st.status) : ""}</h3>
     <div class="action">${en(st.action)}</div>
-    ${st.detail ? `<div class="meta">${en(st.detail)}</div>` : ""}
+    ${st.detail ? `<details class="step-detail"><summary>${tt("plan.note")}</summary><div class="meta">${en(st.detail)}</div></details>` : ""}
     ${meta ? `<div class="meta">${meta}</div>` : ""}
     <div class="state"><b>${tt("step.state")}</b> ${en(st.expected_state)}</div>
     ${st.on_success && st.on_fail.length ? `<div class="meta">${tt("step.onSuccess")} ${en(st.on_success)}</div>` : ""}
-    ${fails}`;
+    ${fails ? `<details class="step-detail"><summary>${tt("step.onFail")}</summary>${fails}</details>` : ""}`;
 }
 
 function renderResult() {
@@ -689,12 +689,13 @@ function renderResult() {
     <tr class="${i !== undefined ? "pick" : ""} ${i === state.shown ? "active" : ""}" ${i !== undefined ? `data-s="${i}" tabindex="0" aria-label="${esc(c.name)}"` : ""}>
       <td>${c.why === "RECOMMENDED" ? "★ " : ""}${en(c.name)} ${flags}</td>
       ${c.cost_range ? `<td class="num" colspan="3" title="${esc(c.cost_range.low_reason + "; " + c.cost_range.high_reason)}">${en(c.cost_range.text)}</td>` : `
-      <td class="num">${fmtC(c.cost)}</td>
+      <td class="num" data-label="${esc(tx("table.col.fast"))}: ">${fmtC(c.cost)}</td>
       <td class="num">${sc ? fmtC(sc.mean) : "—"}</td>
-      <td class="num">${range}</td>`}
+      <td class="num" data-label="${esc(tx("table.col.range"))}: ">${range}</td>`}
       <td class="muted">${c.why === "RECOMMENDED" ? tt("table.recommended") : `<details class="strategy-reason"><summary>${en(c.why.split(";")[0])}</summary>${en(c.why)}</details>`}</td>
     </tr>`;
   }).join("");
+  const chance = s.steps.find(st => st.probability != null && st.probability < 1 && st.kind !== "recovery");
   const cb = s.cost_breakdown;
   const isRec = s.name === r.recommended;
   const stat = (key, v) => `<div class="stat"><div class="label">${tt(key)}</div><div class="value">${v}</div></div>`;
@@ -705,13 +706,14 @@ function renderResult() {
       ${warnings}
       <div class="meta">${tt("plan.objective")} <b>${objLabel}</b> — ${tt(`objective.${r.objective.key}.desc`)}</div>
       <h2>${isRec ? tt(r.schematic ? "plan.schematic" : "plan.recommended") : tt("plan.other")}: ${en(s.name)} ${statusBadge(s.status)}</h2>
-      ${isRec ? `<div class="meta">${en(r.selection_note)}</div>` : ""}
+
       <div class="summary">
         ${s.cost_range ? `<div class="stat" style="grid-column:1/-1"><div class="label">${tt("plan.costRange")}</div><div class="value">${en(s.cost_range.text)}</div>
           <div class="meta">${tt("plan.lower")} ${en(s.cost_range.low_reason)}</div>
           ${s.cost_range.assumed_reason ? `<div class="meta">${tt("plan.middle")} ${en(s.cost_range.assumed_reason)}</div>` : ""}
           <div class="meta">${tt("plan.upper")} ${en(s.cost_range.high_reason)}</div></div>`
           : `<div class="stat"><div class="label">${tt("plan.total")}</div><div class="big">${fmtC(s.expected_cost)}</div></div>`}
+        ${chance ? `<div class="stat"><div class="label">${en(chance.title)}</div><div class="value">${en(chance.probability_text || "")}</div></div>` : ""}
         ${stat("cost.rolling", fmtC(cb.rng))}
         ${stat("cost.bench", fmtC(cb.bench))}
         ${s.optional_divine ? `<div class="stat optional"><div class="label">${tt("cost.divinesOptional")}</div><div class="value">+${fmtC(s.optional_divine.cost)}</div>
@@ -724,20 +726,21 @@ function renderResult() {
         ${stat("plan.badLuck", s.cost_range ? tt("plan.noUpper") : fmtC(s.metrics.bad_luck_cost))}
         ${stat("plan.apps", Math.round(s.metrics.applications).toLocaleString())}
       </div>
+      ${s.steps[0] ? `<div class="first-action"><b>${en(s.steps[0].title)}</b><p>${en(s.steps[0].action)}</p></div>` : ""}
+      ${warnings}
       ${r.cost_note ? `<div class="meta">${en(r.cost_note)}</div>` : ""}
-      ${sims}
-      ${s.notes.map((n) => `<div class="meta">${tt("plan.note")} ${en(n)}</div>`).join("")}
+      <details class="plan-details"><summary>${tt("plan.note")}</summary><div class="meta">${tt("plan.objective")} ${objLabel} ? ${tt(`objective.${r.objective.key}.desc`)}</div>${isRec ? `<div class="meta">${en(r.selection_note)}</div>` : ""}${sims}
+      ${s.notes.map((n) => `<div class="meta">${tt("plan.note")} ${en(n)}</div>`).join("")}</details>
       <ol class="steps" style="margin-top:12px">${steps}</ol>
     </div>
-    <div class="card">
-      <h2>${tt("table.title")}</h2>
+    <details class="card comparison"><summary>${tt("table.title")}</summary>
       <p class="hint">${tt("planner.compareHint")}</p>
       <div class="table-wrap"><table class="strategy-table">
         <thead><tr><th>${tt("table.col.strategy")}</th><th class="num">${tt("table.col.fast")}</th><th class="num">${tt("table.col.sim")}</th><th class="num">${tt("table.col.range")}</th><th>${tt("table.col.why")}</th></tr></thead>
         <tbody>${rows}</tbody></table></div>
       ${(r.not_supported || []).map((n) => `<div class="meta"><span class="badge not-supported">${tt("plan.notSupported")}</span> ${en(n.name)} — ${en(n.reason)}</div>`).join("")}
       <p class="hint">${tt("table.footer", {n: r.considered, s: r.elapsed_s, objective: objLabel})}</p>
-    </div>`;
+    </details>`;
 }
 
 // ----------------------------------------------------------------- events
