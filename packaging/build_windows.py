@@ -12,5 +12,6 @@ license_file = Path(sys.base_prefix) / 'LICENSE.txt'
 if license_file.exists():
     shutil.copyfile(license_file, folder / 'PYTHON-LICENSE.txt')
 archive = Path(shutil.make_archive(str(root/'dist'/'TensChep-Workshop-Windows-x64'), 'zip', root/'dist', folder.name))
+subprocess.run([sys.executable, str(root/'packaging/check_archive.py'), str(archive)], check=True)
 (archive.parent/'SHA256SUMS.txt').write_text(hashlib.sha256(archive.read_bytes()).hexdigest()+'  '+archive.name+'\n')
 print(archive, archive.stat().st_size)

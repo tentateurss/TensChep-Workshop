@@ -1,5 +1,11 @@
 # Limitations
 
+## Beta 3: границы поддержки
+
+RePoE 3.30.0.2.2 проверен на изолированной SQLite; 258 тестов проходили отдельно на 3.29 и 3.30. Это не сертификация всех правил PoE 3.30. Обновление EXE сохраняет прежнюю игровую базу и настройки; версия экспорта видна в Planner. Переход игровых данных выполняется отдельно через staging с проверкой ожидаемой версии и резервной копией.
+
+Essence of Trickery, неоднозначный случай выбора защищённых модов сверх лимита частичной блокировки и неподтверждённые взаимодействия остаются неподдерживаемыми. Timeless 3.30 — UNVERIFIED. Предупреждения о приближениях, качестве рыночных аналогов и снятых фильтрах сохраняются. Windows-артефакты не имеют цифровой подписи; автоматический откат не гарантирует восстановление после отключения питания или повреждения диска.
+
 Everything the planner does not model, or models only approximately, in one place.
 Each entry is taken from an existing reason string or marker. **Source** says where it lives:
 `rules` = `poecraft/rules/mechanics.json` (the `features` list is the "What the planner models"

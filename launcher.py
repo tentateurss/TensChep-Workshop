@@ -29,8 +29,9 @@ def main():
         from poecraft.__main__ import main as cli
         return cli()
     from poecraft import config
-    print('TensChep Workshop v1.0.0 Beta 2')
-    print('PoE 3.30: WAITING FOR GAME DATA. Data:', config.DATA_DIR)
+    from poecraft import __version__
+    print('TensChep Workshop', __version__)
+    print('PoE 3.30: crafting support is partial; Timeless compatibility is unverified. Data:', config.DATA_DIR)
     print('Close this console or press Ctrl+C to stop the server.')
     if not config.DB_PATH.exists():
         print('First start: downloading game data. Internet is required; this may take several minutes.')
