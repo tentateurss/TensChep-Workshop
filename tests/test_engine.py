@@ -1660,6 +1660,13 @@ Item Level: 86
         self.assertEqual(r["summary"]["sample_count"], 1)
         self.assertLessEqual(r["summary"]["sample_min"], r["summary"]["sample_max"])
 
+    def test_unknown_rare_property_prevents_a_confident_valuation(self):
+        r = self.run_eval(self.BOOTS + "\nGrants a completely unknown effect\n", found=lambda p,n:3)
+        self.assertEqual(r["kind"], "rare")
+        self.assertIn("Grants a completely unknown effect", r["unmatched_properties"])
+        self.assertFalse(r["summary"]["reliable_estimate"])
+        self.assertEqual(r["summary"]["reliability_reason"], "unmatched")
+
     def test_stops_as_soon_as_something_is_found(self):
         r = self.run_eval(self.BOOTS, found=lambda p, n: 0 if n == 1 else 3)
         self.assertEqual(len(self.searches), 2)

@@ -21,11 +21,13 @@ const fixtures=JSON.parse(fs.readFileSync(process.env.EVAL_FIXTURES,'utf8'));
    current=name;await p.locator('#itemText').fill(fixtures.texts[name]);
    if(name==='unique')await p.locator('#itemText').dispatchEvent('paste');else await p.locator('#evalBtn').click();
    await p.waitForFunction(()=>state.result!==null);
+   if(['unique_variant','rare_sparse','rare_wide'].includes(name)&&await p.evaluate(()=>state.result.summary.reliable_estimate)!==false)throw Error('unsafe valuation');
    if(name==='relaxed'&&!await p.locator('.relaxed-mods').isVisible())throw Error('relaxation hidden');
    if(name==='timeless'&&!await p.locator('[data-compatibility="unverified"]').isVisible())throw Error('provenance hidden');
    for(const [width,height] of [[1920,1080],[1440,900],[1280,720],[390,844]]){
     await p.setViewportSize({width,height});const size=await p.evaluate(()=>({w:document.documentElement.clientWidth,s:document.documentElement.scrollWidth}));scenes.push({lang,name,...size});
-    if(name==='relaxed'&&(width===1440||width===390))await p.screenshot({path:path.join(artifacts,'evaluator-'+lang+'-'+width+'.png'),fullPage:true});
+    if(['unique_variant','rare_sparse','rare_wide'].includes(name)&&await p.evaluate(()=>state.result.summary.reliable_estimate)!==false)throw Error('unsafe valuation');
+   if(name==='relaxed'&&(width===1440||width===390))await p.screenshot({path:path.join(artifacts,'evaluator-'+lang+'-'+width+'.png'),fullPage:true});
    }
   }
  }

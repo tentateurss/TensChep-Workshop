@@ -81,7 +81,8 @@ def _header(text: str) -> dict:
     head = [l for l in (sections[0] if sections else []) if not (FIELD["item_class"].match(l) or FIELD["rarity"].match(l))]
     rarity = next((m.group(1).strip().lower() for l in flat if (m := FIELD["rarity"].match(l))), "")
     kind = next((k for k, words in RARITY_WORDS.items() if any(rarity.startswith(w) for w in words)), None)
-    return {"flat": flat, "head": head[:3], "rarity": rarity, "kind": kind}
+    return {"flat": flat, "head": head[:3], "rarity": rarity, "kind": kind,
+            "body": [l for section in sections[1:] for l in section]}
 
 
 def _price_chaos(prices, price: dict | None):
@@ -311,11 +312,18 @@ def _summary(out: dict) -> dict | None:
     last = out["passes"][-1] if out.get("passes") else {}
     n_online = last.get("total") if last.get("status") == "online" and last.get("total") else len(online)
     values = [l["chaos"] for l in pool if l.get("chaos") is not None]
+    reason = ("unmatched" if out.get("unmatched_properties") else
+              "small_sample" if len(pool) < 3 else
+              "no_conversion" if not values else
+              "wide_range" if values and min(values) > 0 and max(values) / min(values) >= 5 else
+              "category" if out.get("kind") in ("base", "other") or out.get("comparison_scope") == "category" else
+              "relaxed" if last.get("dropped") else "comparison")
     return {"price": cheapest["price"], "chaos": cheapest.get("chaos"), "online": n_online, "offline_only": not online,
             "shown": len(listings), "sample_min": min(values) if values else None,
             "sample_max": max(values) if values else None, "sample_count": len(values),
             "relaxed": bool(last.get("dropped")), "dropped": last.get("dropped", []),
-            "match_quality": "category" if out.get("kind") in ("base", "unique", "other") else
+            "reliability_reason": reason, "reliable_estimate": reason == "comparison",
+            "match_quality": "category" if out.get("kind") in ("base", "other") or out.get("comparison_scope") == "category" else
                              "relaxed" if last.get("dropped") else "filtered"}
 
 
@@ -645,6 +653,57 @@ def _contained_base(head: list[str], names: dict) -> tuple | None:
     return best[1] if best else None
 
 
+def _unique_properties(h: dict, unidentified: bool) -> tuple[list, dict, list, list]:
+    """Only unambiguous Trade stats; unsupported numeric/variant lines remain visible."""
+    from .itemtext import SKIP_LINE, _marker, _clean
+    from .context import generic_text
+    sockets, filters, considered, unmatched = {}, [], [], []
+    for line in h["flat"]:
+        m = re.fullmatch(r"(?:Sockets|Гнёзда|Гнезда|Fassungen):\s*([RGBWAD -]+)", line, re.I)
+        if m:
+            groups = m.group(1).upper().split()
+            count = sum(len(g.replace("-", "")) for g in groups)
+            links = max((len(g.split("-")) for g in groups), default=0)
+            if (0 < count <= 6 and 0 < links <= count and
+                    all(re.fullmatch(r"[RGBWAD](?:-[RGBWAD])*", g) for g in groups)):
+                sockets = {"sockets": {"min": count, "max": count}, "links": {"min": links}}
+                considered.append(M("m.eval.socket_counts", n=count, links=links))
+            else:
+                unmatched.append(line)
+    if unidentified:
+        return filters, sockets, considered, unmatched
+    try:
+        index = trade.stat_index()
+    except trade.TradeError:
+        index = {}
+    for line in h["body"]:
+        if ":" in line or SKIP_LINE.match(line) or line.startswith("{") or re.match(r"^(Requires|Требует|Benötigt)\b", line):
+            continue
+        clean, kind = _marker(_clean(line))
+        numbers = re.findall(r"-?\d+(?:\.\d+)?", clean)
+        generic = generic_text(clean)
+        if clean.startswith("-"):
+            generic = "+" + generic
+        ids = set(trade.trade_stat_ids(index, kind, generic, False))
+        # Local/global duplicates are not interchangeable for a Unique roll.
+        local_id = index.get(kind, {}).get(generic + " (Local)")
+        if local_id:
+            ids.add(local_id)
+        if len(ids) == 1 and len(numbers) <= 1:
+            f = {"id": next(iter(ids))}
+            if numbers:
+                value = float(numbers[0])
+                tolerance = 0 if abs(value) <= 1 else max(1, abs(value) * 0.1)
+                f["value"] = {"min": round(value - tolerance, 3), "max": round(value + tolerance, 3)}
+            if f not in filters:
+                filters.append(f)
+                considered.append(line)
+        elif numbers or re.search(r"\b(while affected|Allocates|Grants|Unaffected|Cannot)\b", clean, re.I):
+            if line not in unmatched:
+                unmatched.append(line)
+    return filters, sockets, considered, unmatched
+
+
 def _unique(out: dict, h: dict, base: tuple | None, lg: dict) -> dict:
     """A unique by its name (English names; a localized one by its base type, all uniques on it)."""
     base_name = base[0] if base else None
@@ -661,6 +720,16 @@ def _unique(out: dict, h: dict, base: tuple | None, lg: dict) -> dict:
     out["warnings"].append(M("m.eval.unique_scope"))
     if not ascii_name and name:
         out["warnings"].append(M("m.eval.unique_name", base=base_name))
+    filters, sockets, considered, unmatched = _unique_properties(h, out.get("unidentified", False))
+    out.update(considered_properties=considered, unmatched_properties=unmatched)
+    out["unmatched_properties"].extend(line for line in h["flat"]
+                                       if re.search(r"\b(?:foil|foiled|relic|foulborn)\b", line, re.I) and line not in unmatched)
+    if sockets and name != "Tabula Rasa" and (name in ("Skin of the Lords", "Skin of the Loyal") or
+                                              out.get("_status", {}).get("corrupted", {}).get("option") == "true"):
+        out["unmatched_properties"].append(M("m.eval.socket_colours"))
+    out["comparison_scope"] = "properties" if (filters or sockets) and ascii_name and not out.get("unidentified") else "category"
+    if not ascii_name and name:
+        out["unmatched_properties"].append(name)
 
     def make(status):
         q = {"status": {"option": status}, "filters": {
@@ -671,6 +740,10 @@ def _unique(out: dict, h: dict, base: tuple | None, lg: dict) -> dict:
             q["type"] = base_name
         if ascii_name:
             q["name"] = name
+        if filters:
+            q["stats"] = trade.stats_groups(filters)
+        if sockets:
+            q["filters"]["socket_filters"] = {"filters": sockets}
         return {"query": q, "sort": {"price": "asc"}}
     try:
         p = {"status": "online", "dropped": [], "total": None}
@@ -726,4 +799,5 @@ def _rare(out: dict, parsed: dict, lg: dict, data: GameData) -> dict:
     except trade.TradeError as e:
         out["warnings"].append(M("m.eval.trade_error", error=e.args[0] if e.args else str(e)))
     out["warnings"] += [M("m.trade.unmapped", line=u) for u in unmapped]
+    out["unmatched_properties"] = list(dict.fromkeys(unmapped + [l["text"] for l in parsed["lines"] if not l.get("matched")]))
     return out

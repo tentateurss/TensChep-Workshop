@@ -42,8 +42,9 @@ function summaryHtml(r) {
   if (!s) return (r.passes || []).length && !r.message ? `<div class="summary none">${tt("eval.none")}</div>` : "";
   const conv = s.chaos != null && s.price.currency !== "chaos" ? ` <span class="muted">≈ ${esc(fmtC(s.chaos))}</span>` : "";
   const sub = s.offline_only ? tt("eval.summary.offline") : tt("eval.summary.online", {n: esc(s.online)});
-  return `<div class="summary ${s.offline_only ? "offline" : ""}"><span class="summary-label">${tt("eval.summary.cheapest")}</span>
-    <span class="summary-price">${fmtPrice(s.price)}</span>${conv}<span class="summary-sub">${sub}</span>
+  return `<div class="summary ${s.offline_only ? "offline" : ""}"><span class="summary-label">${tt(s.reliable_estimate === false ? "eval.estimate" : "eval.summary.cheapest")}</span>
+    <span class="summary-price">${s.reliable_estimate === false ? tt("eval.noReliable") : fmtPrice(s.price)}</span>${s.reliable_estimate === false ? `<span class="summary-sub">${tt("eval.comparableAsk")}: ${fmtPrice(s.price)}${conv}</span>` : conv}<span class="summary-sub">${sub}</span>
+    ${s.reliability_reason ? `<span class="summary-sub match-quality">${tt("eval.reliability." + s.reliability_reason)}</span>` : ""}
     ${s.sample_count ? `<span class="summary-sub">${tt("eval.sampleRange", {lo: esc(fmtC(s.sample_min)), hi: esc(fmtC(s.sample_max)), n: s.sample_count})}</span>` : ""}
     <span class="summary-sub">${tt("eval.asking")}</span>
     ${r.value_share ? `<span class="summary-sub">${tt("eval.valueTolerance", {p: Math.round(r.value_share * 100)})}</span>` : ""}
@@ -192,6 +193,8 @@ function renderResult() {
              `${r.cached ? ` · <span class="muted">${tt("eval.cached")}</span>` : ""}</div>`);
   }
   if (r.timeless) out.push(timelessHtml(r));
+  if ((r.considered_properties || []).length) out.push(`<div class="card detail"><h2>${tt("eval.considered")}</h2><ul>${r.considered_properties.map(x=>`<li>${en(x)}</li>`).join("")}</ul><p class="hint">${tt("eval.uniqueTolerance")}</p></div>`);
+  if ((r.unmatched_properties || []).length) out.push(`<div class="card notice"><b>${tt("eval.unmatched")}</b><ul>${r.unmatched_properties.map(x=>`<li>${en(x)}</li>`).join("")}</ul></div>`);
   if (r.timeless && (r.passes || []).length) out.push(`<h2 class="detail tj-trade">${tt("eval.tj.trade")}</h2>`);
   out.push(summaryHtml(r));
   if (r.ninja_price != null) out.push(`<div class="meta">${tt("eval.ninja", {c: esc(fmtC(r.ninja_price))})}</div>`);
