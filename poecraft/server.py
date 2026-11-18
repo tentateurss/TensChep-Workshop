@@ -79,6 +79,9 @@ def _present(raw: dict, lang: str, rid: str) -> dict:
 def _error(e: Exception, lang: str) -> str:
     """An error message in `lang` when it carries a message object (otherwise as it is)."""
     msg = e.args[0] if e.args else ""
+    if isinstance(msg, Text) and hasattr(msg, "params"):
+        import logging
+        logging.getLogger(__name__).warning("Request error %s: %r", msg.key, msg.params)
     return msg.render(lang) if isinstance(msg, Text) else str(e)
 
 

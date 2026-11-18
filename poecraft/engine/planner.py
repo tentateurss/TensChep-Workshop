@@ -328,6 +328,7 @@ class Planner:
                 yield
                 return
             self._running = True
+            self.prices.quoted.clear()
             self._sim_spent, self._timeouts, self._sim_skipped = 0.0, [], []
             self._rec_spent, self._rec_skipped = 0.0, []
             self.progress.start("calculating")
@@ -586,7 +587,14 @@ class Planner:
             for s in users:
                 s.notes.append(msg)
 
+        pricing = self.prices.assessment()
+        if pricing["state"] != "market":
+            price_note = M(f"m.price.ranking_{pricing['state']}")
+            warnings.append(price_note)
+            selection_note = J([price_note, selection_note], " ")
+
         return {
+            "pricing": pricing,
             "item": {
                 "base": base.name, "base_id": base.id, "item_class": base.item_class, "ilvl": ctx.ilvl,
                 "influences": list(ctx.influences), "tags": sorted(ctx.tags),
@@ -3349,6 +3357,9 @@ class Planner:
                 "better": j >= 0 and mdp.V[j] < v - 1e-9,
             } for p, j in outs]
             options.append(o)
+        pricing = self.prices.assessment()
+        price_warnings = ([M(f"m.price.ranking_{pricing['state']}")]
+                          if pricing["state"] != "market" and pricing["state"] != fresh.get("pricing", {}).get("state") else [])
         return {
             "item": {"base": base.name, "base_id": base.id, "item_class": base.item_class, "ilvl": ctx.ilvl,
                      "influences": list(ctx.influences)},
@@ -3358,6 +3369,7 @@ class Planner:
             "already_done": mdp.done(s0),
             "bench": bench.mod.text if bench else None,
             "expected_cost_from_here": v,
+            "pricing": pricing,
             "optional_divine": ({"cost": divs_have * P("Divine Orb"), "divines": divs_have, "p_values_met": q_have,
                                  "total_with": v + divs_have * P("Divine Orb")} if divs_have else None),
             "fresh_plan": {"name": fresh_best["name"], "expected_cost": restart_total, "basis": "calculated",
@@ -3365,7 +3377,8 @@ class Planner:
             "options_basis": "calculated",
             "options": options,
             "steps": self._recover_steps(have, targets, mdp, s0, bench, options, fresh_best, describe),
-            "warnings": fresh["warnings"] + ([restart_note] if restart_note else []), "prices": fresh["prices"],
+            "warnings": fresh["warnings"] + ([restart_note] if restart_note else []) + price_warnings,
+            "prices": fresh["prices"],
             "features": feature_rows(self.rules),
         }
 

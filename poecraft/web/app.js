@@ -580,7 +580,7 @@ function renderRecovery(r) {
     ${r.warnings.map((w) => `<div class="warn">${en(w)}</div>`).join("")}
     <div class="meta">${en(r.state)}</div>
     <h2>${tt("rec.title")}</h2>
-    <div class="summary"><div class="stat"><div class="label">${tt("rec.fromHere")}</div><div class="big">${fmtC(r.expected_cost_from_here)}</div></div>
+    <div class="summary"><div class="stat"><div class="label">${tt(r.pricing && r.pricing.state !== "market" ? "prices.totalApprox" : "rec.fromHere")}</div><div class="big">${fmtC(r.expected_cost_from_here)}</div></div>
       <div class="stat"><div class="label">${tt("rec.fresh")}</div><div class="value">${fmtC(r.fresh_plan.expected_cost)}</div>
         <div class="meta">${en(r.fresh_plan.name)}</div></div>
       ${od ? `<div class="stat optional"><div class="label">${tt("cost.divinesOptional")}</div><div class="value">+${fmtC(od.cost)}</div></div>` : ""}</div>
@@ -695,7 +695,7 @@ function renderResult() {
       <td class="num" data-label="${esc(tx("table.col.fast"))}: ">${fmtC(c.cost)}</td>
       <td class="num">${sc ? fmtC(sc.mean) : "—"}</td>
       <td class="num" data-label="${esc(tx("table.col.range"))}: ">${range}</td>`}
-      <td class="muted">${c.why === "RECOMMENDED" ? tt("table.recommended") : `<details class="strategy-reason"><summary>${en(c.why.split(";")[0])}</summary>${en(c.why)}</details>`}</td>
+      <td class="muted">${c.why === "RECOMMENDED" ? tt(r.pricing && r.pricing.state !== "market" ? "prices.conditionalRank" : "table.recommended") : `<details class="strategy-reason"><summary>${en(c.why.split(";")[0])}</summary>${en(c.why)}</details>`}</td>
     </tr>`;
   }).join("");
   const chance = s.steps.find(st => st.probability != null && st.probability < 1 && st.kind !== "recovery");
@@ -708,14 +708,14 @@ function renderResult() {
       <div class="meta"><b>${g(r.item, "base")}</b> (${g(r.item, "item_class")}) · ${r.targets.map((t) => g(t, "description")).join(" · ")}</div>
       ${warnings}
       <div class="meta">${tt("plan.objective")} <b>${objLabel}</b> — ${tt(`objective.${r.objective.key}.desc`)}</div>
-      <h2>${isRec ? tt(r.schematic ? "plan.schematic" : "plan.recommended") : tt("plan.other")}: ${en(s.name)} ${statusBadge(s.status)}</h2>
+      <h2>${isRec ? tt(r.schematic ? "plan.schematic" : r.pricing && r.pricing.state !== "market" ? "prices.conditionalRank" : "plan.recommended") : tt("plan.other")}: ${en(s.name)} ${statusBadge(s.status)}</h2>
 
       <div class="summary">
         ${s.cost_range ? `<div class="stat" style="grid-column:1/-1"><div class="label">${tt("plan.costRange")}</div><div class="value">${en(s.cost_range.text)}</div>
           <div class="meta">${tt("plan.lower")} ${en(s.cost_range.low_reason)}</div>
           ${s.cost_range.assumed_reason ? `<div class="meta">${tt("plan.middle")} ${en(s.cost_range.assumed_reason)}</div>` : ""}
           <div class="meta">${tt("plan.upper")} ${en(s.cost_range.high_reason)}</div></div>`
-          : `<div class="stat"><div class="label">${tt("plan.total")}</div><div class="big">${fmtC(s.expected_cost)}</div></div>`}
+          : `<div class="stat"><div class="label">${tt(r.pricing && r.pricing.state !== "market" ? "prices.totalApprox" : "plan.total")}</div><div class="big">${fmtC(s.expected_cost)}</div></div>`}
         ${chance ? `<div class="stat"><div class="label">${en(chance.title)}</div><div class="value">${en(chance.probability_text || "")}</div></div>` : ""}
         ${stat("cost.rolling", fmtC(cb.rng))}
         ${stat("cost.bench", fmtC(cb.bench))}

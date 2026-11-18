@@ -167,6 +167,10 @@ def _named_items(raw_dir: Path | None = None) -> dict:
 def currency_text(english: str, lang: str, root: Path | None = None) -> tuple[str, bool]:
     """A price-table name in `lang`. When the name belongs to several item ids (e.g. a resonator's socketable and
     stackable versions) it is localized only if every one of those ids has the same localized string."""
+    actions = {"Harvest Reforge (tag)": "prices.action.harvest", "Aisling (Research, rank 3)": "prices.action.aisling"}
+    if english in actions:
+        text, fallback = lookup(lang, actions[english])
+        return text, not fallback or lang == DEFAULT
     ids = _named_items().get(english, [])
     found = [game_text("currency", i, english, lang, root) for i in ids]
     texts = {t for t, ok in found if ok}

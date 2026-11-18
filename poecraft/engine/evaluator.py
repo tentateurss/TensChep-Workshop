@@ -102,7 +102,11 @@ def _listing(prices, row: dict) -> dict:
         for m in it.get(group) or []:
             mods.append(m.get("description") if isinstance(m, dict) else str(m))
     price = ls.get("price") or {}
+    currency = CURRENCY_CODES.get(price.get("currency"))
+    conversion_estimated = bool(currency and currency != "Chaos Orb" and (
+        prices.source(currency) != "live" or prices.live_status.get("state") == "stale"))
     return {"price": {"amount": price.get("amount"), "currency": price.get("currency"), "type": price.get("type")},
+            "conversion_estimated": conversion_estimated,
             "chaos": _price_chaos(prices, price), "online": bool((ls.get("account") or {}).get("online")),
             "name": it.get("name") or "", "type": it.get("typeLine") or "", "ilvl": it.get("ilvl"), "mods": mods,
             "indexed": ls.get("indexed")}
@@ -262,6 +266,10 @@ def evaluate(text: str, league: str | None = None, data=None, socket=None, equiv
         result["warnings"] = list(result.get("warnings", []))
         if status.get("message_key"):
             result["warnings"].append(M(status["message_key"], **status.get("message_params", {})))
+        if any(x.get("conversion_estimated") for x in result.get("listings", [])):
+            result["warnings"].append(M("m.eval.price_conversion_estimate"))
+        result["diagnostics"] = [{"message_key": w.key, "error": str(w.params["error"])}
+                                 for w in result["warnings"] if isinstance(w, M) and "error" in w.params]
         return _notes(result)
     finally:
         PRICE_LEAGUE.reset(token)
@@ -314,7 +322,7 @@ def _summary(out: dict) -> dict | None:
     values = [l["chaos"] for l in pool if l.get("chaos") is not None]
     reason = ("unmatched" if out.get("unmatched_properties") else
               "small_sample" if len(pool) < 3 else
-              "no_conversion" if not values else
+              "no_conversion" if not values or any(l.get("conversion_estimated") for l in pool) else
               "wide_range" if values and min(values) > 0 and max(values) / min(values) >= 5 else
               "category" if out.get("kind") in ("base", "other") or out.get("comparison_scope") == "category" else
               "relaxed" if last.get("dropped") else "comparison")

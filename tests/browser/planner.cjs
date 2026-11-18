@@ -42,6 +42,11 @@ await p.locator('#result .comparison > summary').click();
 const scenes=[];
 for(const lang of ['en','ru','de']){
  await p.locator('#langSelect [data-lang="'+lang+'"]').click();await p.waitForTimeout(700);
+ const label=await p.locator('#result .summary .label').first().innerText();
+ const costLabels={en:'Indicative cost',ru:'Ориентировочная стоимость',de:'Richtwert'};
+ if(!label.includes(costLabels[lang]))throw Error('estimated total is not labelled: '+label);
+ const resultText=await p.locator('#result').innerText();
+ if(/config\/prices\.json|default_essence_by_level|MovementVelocity2Royale|item_level_restriction|remove_crafted_mods|added_mods|forced_mods/.test(resultText))throw Error('technical detail leaked into warnings');
  for(const [width,height] of [[1920,1080],[1440,900],[1280,720],[390,844]]){
   await p.setViewportSize({width,height});await p.screenshot({path:path.join(artifacts,'quality-'+lang+'-'+width+'.png'),fullPage:true});
   const size=await p.evaluate(()=>({width:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth}));scenes.push({lang,...size});

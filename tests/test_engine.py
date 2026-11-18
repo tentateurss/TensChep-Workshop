@@ -331,7 +331,7 @@ class Eldritch(unittest.TestCase):
         row = next(k for k in result["prices"]["key_prices"] if k["name"] == "Exceptional Eldritch Ember")
         self.assertEqual((row["chaos"], row["source"]), (price, "estimated"))
         self.assertFalse(any(w.startswith("No price configured") for w in result["warnings"]))
-        self.assertTrue(any(w.startswith("Price estimate: Exceptional Eldritch Ember has no live price")
+        self.assertTrue(any(w.startswith("Price estimate: Exceptional Eldritch Ember has no current market quote")
                             for w in result["warnings"]))
 
     def test_amulet_reason_names_the_currency_rule(self):
@@ -556,7 +556,7 @@ class Veiled(unittest.TestCase):
         self.assertTrue(best["family"].endswith("+aisling"), best["family"])
         titles = [s["title"] for s in best["steps"]]
         reroll = next(i for i, t in enumerate(titles) if t.startswith("Reroll"))
-        ais, unv = titles.index("Aisling (Research, rank 3)"), titles.index("Unveil (Jun)")
+        ais, unv = titles.index("Aisling service"), titles.index("Unveil (Jun)")
         self.assertLess(reroll, ais)                         # explicit targets first ...
         self.assertEqual(unv, ais + 1)                       # ... then Aisling, then the unveil
         self.assertIn("free prefix for Aisling's veiled modifier", best["steps"][reroll]["expected_state"])
@@ -721,8 +721,8 @@ class SpecialMechanics(unittest.TestCase):
         with self.assertRaises(Infeasible) as cm:   # today: no recipe file, so the missing piece is named
             self.planner.plan(self.base.id, 86, [], [spec])
         reason = cm.exception.report["unreachable"][0]["reason"]
-        self.assertIn("not supported (missing recipe data)", reason.lower())
-        self.assertIn("no Beastcrafting recipes", reason)
+        self.assertIn("beastcrafting is not supported", reason.lower())
+        self.assertIn("does not confirm the required beasts, costs and recipe outcomes", reason)
 
     def test_special_fossil_target_follows_the_real_data_path(self):
         from poecraft.engine import special
@@ -775,11 +775,11 @@ class SpecialMechanics(unittest.TestCase):
         self.assertTrue(specs[0].get("beastcraft"))
         with self.assertRaises(Infeasible) as cm:
             self.planner.plan(self.base.id, 86, [], specs)
-        self.assertIn("not supported (missing recipe data)", str(cm.exception).lower())
+        self.assertIn("beastcrafting is not supported", str(cm.exception).lower())
         # UI: the mod list shows the outcome with the reason, and features name Beastcrafting on its own line
         fams = _families({"base": [self.base.id], "ilvl": ["86"]})["families"]
         cat = next(f for f in fams if f.get("key") == "beastcraft|GrantsCatAspectCrafted")
-        self.assertIn("no Beastcrafting recipes", cat["not_supported"])
+        self.assertIn("does not confirm the required beasts, costs and recipe outcomes", cat["not_supported"])
         rows = [f for f in self.planner.plan(self.base.id, 86, [], [
             {"signature": "prefix|base_maximum_life", "min": 100}])["features"] if f["name"] == "Beastcrafting"]
         self.assertEqual(rows[0]["status"], "not supported (missing recipe data)")
@@ -1031,7 +1031,14 @@ class Explanations(unittest.TestCase):
         for name, text in rules.items():                        # rules notes: English rendering == mechanics.json
             if isinstance(text, str) and (name.endswith("_note") or name == "beastcraft_missing") \
                     and i18n.lookup("en", f"m.rule.{name}")[1] is False:
-                self.assertEqual(str(rule_note(name)), text, name)
+                if name in ("event_only_mod_note", "beastcraft_missing", "remove_crafted_note"):
+                    # Player wording is intentionally distinct from the retained technical rule description.
+                    self.assertNotIn(".json", str(rule_note(name)))
+                    self.assertNotIn("MovementVelocity2Royale", str(rule_note(name)))
+                    expected = {"event_only_mod_note": "Battle Royale", "beastcraft_missing": "Beastcrafting", "remove_crafted_note": "1 Orb of Scouring"}
+                    self.assertIn(expected[name], str(rule_note(name)))
+                else:
+                    self.assertEqual(str(rule_note(name)), text, name)
         for f, row in zip(rules["features"], feature_rows(rules)):
             self.assertEqual(str(row["name"]), f["name"])
             if f.get("note"):
@@ -1863,7 +1870,8 @@ Historic
                 mock.patch("poecraft.engine.evaluator._price_league", return_value="Allflame"):
             r = render(evaluator.evaluate(self.BOOTS, league="Allflame"), "ru")
         self.assertEqual(r["listings"], [])
-        self.assertTrue(any("торговая площадка недоступна" in w for w in r["warnings"]), r["warnings"])
+        self.assertTrue(any("Поиск Trade прерван" in w for w in r["warnings"]), r["warnings"])
+        self.assertTrue(any("Name or service not known" in d["error"] for d in r["diagnostics"]))
 
     def test_exarch_implicit_on_gloves_is_kept_and_searched_as_an_implicit(self):
         from poecraft.data.repository import get_data
@@ -2798,7 +2806,7 @@ class TradeLinksAndTemplates(unittest.TestCase):
         self.assertTrue(r["url"].startswith("https://www.pathofexile.com/trade/search/Allflame?q="))
         q = json.loads(urllib.parse.unquote(r["url"].split("?q=", 1)[1]))
         self.assertEqual(q["query"]["stats"][0]["filters"][0], {"id": "explicit.stat_3299347043", "value": {"min": 70}})
-        self.assertTrue(any("did not return a short link" in w for w in r["warnings"]))
+        self.assertTrue(any("short Trade link could not be created" in w for w in r["warnings"]))
 
     def test_cli_templates_save_and_load(self):
         import io
@@ -3337,7 +3345,7 @@ class Recovery(unittest.TestCase):
         self.assertTrue(essences, "worked example should show at least one essence strategy")
         table = {k["name"]: k["source"] for k in result["prices"]["key_prices"]}
         for name in essences:      # none of them is in the live snapshot above
-            self.assertTrue(any(w.startswith(f"Price estimate: {name} is not listed on poe.ninja (TestLeague)")
+            self.assertTrue(any(w.startswith(f"Price estimate: {name} has no market quote for TestLeague")
                                 for w in result["warnings"]), name)
             self.assertEqual(table.get(name), "estimated")
 
@@ -3411,13 +3419,16 @@ class Recovery(unittest.TestCase):
         self.assertEqual(result["cost_note"], "Base item price is not included.")
         # 3. Harvest shown -> its config price is named as an estimate
         if any("Harvest" in s["name"] for s in result["strategies"]):
-            self.assertTrue(any(w.startswith("Price estimate: Harvest Reforge (tag) has no live price")
+            self.assertTrue(any(w.startswith("Price estimate: Harvest Reforge has no current market quote")
                                 for w in result["warnings"]))
         best = result["strategies"][0]
         bench = next(st for st in best["steps"] if st["title"] == "Crafting bench")   # local Energy Shield craft
         self.assertEqual(bench["status"], "approximate")
-        self.assertIn("bench craft eligibility is inferred from the base's defence types; the export has no spawn "
-                      "tags for bench crafts", bench["detail"])
+        self.assertIn("this defence craft is selected from the base's defence types", bench["detail"])
+        unknown = any(x["source"] == "default" for x in result["pricing"]["inputs"])
+        self.assertEqual(result["pricing"]["state"], "unknown" if unknown else "approximate")
+        price_note = "placeholder values" if unknown else "Totals and rankings are conditional"
+        self.assertTrue(any(price_note in w for w in result["warnings"]))
 
     def test_worked_example_still_plans(self):
         specs = [self.spec("+# to maximum Life", 140), self.spec("+# to maximum Energy Shield", 50),
