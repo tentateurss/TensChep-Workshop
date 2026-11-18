@@ -47,8 +47,19 @@ def _cache(name: str) -> Path:
     return config.DATA_DIR / f"trade_{name}.json"
 
 
-def _get(path: str, name: str, ttl: int):
+def _site(language: str = "en") -> str:
+    if language == "en":
+        return SITE
+    if language not in ("ru", "de"):
+        raise ValueError("Unsupported trade language")
+    return f"https://{language}.pathofexile.com"
+
+
+def _get(path: str, name: str, ttl: int, language: str = "en"):
     """GET a trade-site data file, cached on disk for `ttl` seconds; a stale cache is used when the site is down."""
+    site = _site(language)
+    if language != "en":
+        name += "_" + language
     cache = _cache(name)
     try:
         entry = json.loads(cache.read_text(encoding="utf-8"))
@@ -62,7 +73,7 @@ def _get(path: str, name: str, ttl: int):
         if entry:
             return entry["body"]
         raise TradeError(M("m.tradeerr.unreachable", reason=failed[1]))
-    req = urllib.request.Request(SITE + path, headers={"User-Agent": user_agent(), "Accept": "application/json"})
+    req = urllib.request.Request(site + path, headers={"User-Agent": user_agent(), "Accept": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
             body = json.loads(r.read().decode("utf-8"))
@@ -100,11 +111,12 @@ def current_league(price_league: str | None = None) -> dict:
     return {"league": "Standard", "source": "fallback", "known": ["Standard"]}
 
 
-def stat_index() -> dict[str, dict[str, str]]:
+def stat_index(language: str = "en") -> dict[str, dict[str, str]]:
     """{"explicit": {text: trade id}, "implicit": {...}, "fractured": {...}, "crafted": {...},
     "_alts": {kind: {text: [every id with that text]}}} - a few texts belong to more than one stat (e.g. two
     "#% of Fire Damage Leeched as Life" implicits); searches then accept any of them."""
-    body = _get("/api/trade/data/stats", "stats", STATS_TTL)
+    body = (_get("/api/trade/data/stats", "stats", STATS_TTL) if language == "en" else
+            _get("/api/trade/data/stats", "stats", STATS_TTL, language))
     out: dict = {t: {} for t in TYPES}
     alts: dict = {t: {} for t in TYPES}
     for group in body.get("result", []):
@@ -380,18 +392,20 @@ def _known_zero(context: str, cons: dict) -> bool:
     return False
 
 
-def search_ids(league: str, payload: dict, wait: float = 20.0) -> dict:
+def search_ids(league: str, payload: dict, wait: float = 20.0, language: str = "en") -> dict:
     """POST a search: {"id", "total", "result": [listing ids, cheapest first]}; identical searches are cached, and a
     search stricter than one that found nothing is answered without asking ({"id": None, "total": 0, "inferred"})."""
-    key = ("search", league, json.dumps(payload, sort_keys=True, separators=(",", ":")))
+    site = _site(language)
+    key = ("search", language, league, json.dumps(payload, sort_keys=True, separators=(",", ":")))
     context, cons = _constraints(league, payload)
+    context = (language, context)
     with _lock:
         hit = _listing_cache.get(key)
         if hit and hit[0] > time.monotonic():
             return hit[1]
         if _known_zero(context, cons):
             return {"id": None, "total": 0, "result": [], "inferred": True}
-    req = urllib.request.Request(f"{SITE}/api/trade/search/{urllib.parse.quote(league)}",
+    req = urllib.request.Request(f"{site}/api/trade/search/{urllib.parse.quote(league)}",
                                  json.dumps(payload).encode("utf-8"),
                                  {"User-Agent": user_agent(), "Content-Type": "application/json",
                                   "Accept": "application/json"})
@@ -427,5 +441,5 @@ def fetch_listings(query_id: str, ids: list[str], wait: float = 20.0) -> list[di
     return out
 
 
-def search_url(league: str, query_id: str) -> str:
-    return f"{SITE}/trade/search/{urllib.parse.quote(league)}/{query_id}"
+def search_url(league: str, query_id: str, language: str = "en") -> str:
+    return f"{_site(language)}/trade/search/{urllib.parse.quote(league)}/{query_id}"

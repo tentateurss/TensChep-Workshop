@@ -1,0 +1,10 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert');
+const source=fs.readFileSync(require('path').join(__dirname,'../../poecraft/web/evaluator.js'),'utf8');
+const prefix=source.slice(0,source.indexOf('\nfunction listingsHtml'));
+const {fmtC,summaryHtml}=vm.runInNewContext(prefix+'\n;({fmtC,summaryHtml})');
+assert.equal(fmtC(0.03),'0.03 c');assert.equal(fmtC(0.00003),'<0.001 c');assert.equal(fmtC(null),'—');
+const result={kind:'unique',comparison_scope:'properties',unmatched_properties:[],summary:{price:{amount:1,currency:'alch'},chaos:0.03,reliable_estimate:false,reliability_reason:'wide_range'}};
+let html=summaryHtml(result);assert(html.includes('summary-price">1 alch'));assert(html.includes('0.03 c'));assert(html.includes('eval.reliability.wide_range'));
+result.unmatched_properties=['unknown'];assert(summaryHtml(result).includes('eval.noReliable'));
+result.kind='rare';result.unmatched_properties=[];assert(summaryHtml(result).includes('eval.noReliable'));
+console.log('PASS: native Unique ask, uncertainty, unknown/Rare guards and small currency formatting');

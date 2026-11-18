@@ -91,8 +91,11 @@ def _price_chaos(prices, price: dict | None):
     name = CURRENCY_CODES.get(price.get("currency"))
     if name is None:
         return None
+    if name != "Chaos Orb" and prices.source(name) == "default":
+        return None
     each = 1.0 if name == "Chaos Orb" else prices.get(name)
-    return round(float(price["amount"]) * each, 2) if each else None
+    value = float(price["amount"]) * each
+    return value if math.isfinite(value) and value > 0 else None
 
 
 def _listing(prices, row: dict) -> dict:
@@ -565,11 +568,12 @@ def _wait(out: dict) -> float:
 
 def _search_and_fetch(out: dict, lg: dict, payload: dict) -> int:
     from .prices import Prices
-    res = trade.search_ids(lg["league"], _with_status(payload, out.get("_status")), wait=_wait(out))
+    localized = {"language": out["query_language"]} if out.get("query_language", "en") != "en" else {}
+    res = trade.search_ids(lg["league"], _with_status(payload, out.get("_status")), wait=_wait(out), **localized)
     if res.get("inferred"):
         out["inferred"] = out.get("inferred", 0) + 1       # answered from an earlier search that found nothing
     elif res.get("id"):
-        out["search_url"] = trade.search_url(lg["league"], res["id"])
+        out["search_url"] = trade.search_url(lg["league"], res["id"], **localized)
     if res["total"]:
         rows = trade.fetch_listings(res["id"], res["result"][:MAX_LISTINGS], wait=_wait(out))
         prices = Prices()
@@ -661,9 +665,9 @@ def _contained_base(head: list[str], names: dict) -> tuple | None:
     return best[1] if best else None
 
 
-def _unique_properties(h: dict, unidentified: bool) -> tuple[list, dict, list, list]:
+def _unique_properties(h: dict, unidentified: bool, language: str = "en") -> tuple[list, dict, list, list]:
     """Only unambiguous Trade stats; unsupported numeric/variant lines remain visible."""
-    from .itemtext import SKIP_LINE, _marker, _clean
+    from .itemtext import SKIP_LINE, _marker, _clean, _groups
     from .context import generic_text
     sockets, filters, considered, unmatched = {}, [], [], []
     for line in h["flat"]:
@@ -681,13 +685,18 @@ def _unique_properties(h: dict, unidentified: bool) -> tuple[list, dict, list, l
     if unidentified:
         return filters, sockets, considered, unmatched
     try:
-        index = trade.stat_index()
+        index = trade.stat_index() if language == "en" else trade.stat_index(language)
     except trade.TradeError:
         index = {}
-    for line in h["body"]:
+    lines = [(line, kind) for group, kind, _, _ in _groups(h["body"]) for line in group]
+    for line, group_kind in lines:
         if ":" in line or SKIP_LINE.match(line) or line.startswith("{") or re.match(r"^(Requires|Требует|Benötigt)\b", line):
             continue
         clean, kind = _marker(_clean(line))
+        if kind == "explicit":
+            kind = group_kind
+        clean = re.sub(r"[\u200b-\u200d\ufeff]", "", clean)
+        clean = re.sub(r"\s+[—-]\s+(?:Unscalable Value|Неизменяемое значение|Unveränderlicher Wert)$", "", clean, flags=re.I)
         numbers = re.findall(r"-?\d+(?:\.\d+)?", clean)
         generic = generic_text(clean)
         if clean.startswith("-"):
@@ -713,30 +722,34 @@ def _unique_properties(h: dict, unidentified: bool) -> tuple[list, dict, list, l
 
 
 def _unique(out: dict, h: dict, base: tuple | None, lg: dict) -> dict:
-    """A unique by its name (English names; a localized one by its base type, all uniques on it)."""
+    """Search an exact Unique on the Trade site matching its item-text language."""
     base_name = base[0] if base else None
     base_names = {_norm(base_name)} | {_norm(i18n.game_text("base", base[2], base_name, c)[0]) for c in ("ru", "de")} \
         if base else set()
     name = next((l for l in h["head"] if _norm(l) not in base_names and
                  _norm(l) not in ("unidentified", "неопознано", "nicht identifiziert")), None)
     ascii_name = bool(name) and all(ord(ch) < 128 for ch in name)
+    language = ("ru" if name and re.search(r"[А-Яа-яЁё]", name) else
+                "de" if any(l.startswith(("Seltenheit:", "Gegenstandsklasse:")) for l in h["flat"]) else "en")
+    exact_name = bool(name) and (ascii_name or language != "en")
     ilvl = next((int(m.group(1)) for l in h["flat"] if (m := FIELD["ilvl"].match(l))), None)
-    if not ascii_name and not base_name:
+    if not exact_name and not base_name:
         out.update(kind="unknown", message=M("m.eval.unknown_item", lines=" / ".join(h["head"])))
         return out
     out.update(kind="unique", item={"name": name, "type": base_name, "ilvl": ilvl})
+    out["query_language"] = language
     out["warnings"].append(M("m.eval.unique_scope"))
-    if not ascii_name and name:
+    if not exact_name and name:
         out["warnings"].append(M("m.eval.unique_name", base=base_name))
-    filters, sockets, considered, unmatched = _unique_properties(h, out.get("unidentified", False))
+    filters, sockets, considered, unmatched = _unique_properties(h, out.get("unidentified", False), language)
     out.update(considered_properties=considered, unmatched_properties=unmatched)
     out["unmatched_properties"].extend(line for line in h["flat"]
                                        if re.search(r"\b(?:foil|foiled|relic|foulborn)\b", line, re.I) and line not in unmatched)
     if sockets and name != "Tabula Rasa" and (name in ("Skin of the Lords", "Skin of the Loyal") or
                                               out.get("_status", {}).get("corrupted", {}).get("option") == "true"):
         out["unmatched_properties"].append(M("m.eval.socket_colours"))
-    out["comparison_scope"] = "properties" if (filters or sockets) and ascii_name and not out.get("unidentified") else "category"
-    if not ascii_name and name:
+    out["comparison_scope"] = "properties" if (filters or sockets) and exact_name and not out.get("unidentified") else "category"
+    if not exact_name and name:
         out["unmatched_properties"].append(name)
 
     def make(status):
@@ -745,8 +758,8 @@ def _unique(out: dict, h: dict, base: tuple | None, lg: dict) -> dict:
             "misc_filters": {"filters": {"identified": {"option": "false" if out.get("unidentified") else "true"},
                                          "corrupted": {"option": "false"}}}}}
         if base_name:
-            q["type"] = base_name
-        if ascii_name:
+            q["type"] = i18n.game_text("base", base[2], base_name, language)[0] if language != "en" else base_name
+        if exact_name:
             q["name"] = name
         if filters:
             q["stats"] = trade.stats_groups(filters)

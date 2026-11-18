@@ -1574,7 +1574,7 @@ Item Level: 86
         from poecraft.engine import evaluator
         from poecraft.messages import render
 
-        def fake_search(league, payload, wait=20.0):
+        def fake_search(league, payload, wait=20.0, language="en"):
             self.searches.append(payload)
             total = found(payload, len(self.searches))
             return {"id": f"q{len(self.searches)}", "total": total, "result": [f"r{i}" for i in range(total)]}
@@ -1584,7 +1584,7 @@ Item Level: 86
                 {"listing": {"price": {"amount": 40, "currency": "chaos"}, "account": {"online": {"league": "L"}}},
                  "item": {"typeLine": "Crusader Boots", "ilvl": 84, "explicitMods": ["+80 to maximum Life"]}}]
         with mock.patch.object(trade, "search_ids", fake_search), mock.patch.object(trade, "fetch_listings", fake_fetch), \
-                mock.patch.object(trade, "stat_index", lambda: self.STATS), \
+                mock.patch.object(trade, "stat_index", lambda language="en": self.STATS), \
                 mock.patch.object(trade, "leagues", lambda realm="pc": ["Allflame", "Standard"]), \
                 mock.patch("poecraft.engine.evaluator._price_league", return_value="Allflame"):
             return render(evaluator.evaluate(text), lang)
@@ -1743,7 +1743,7 @@ Historic
         self.assertEqual(self.searches, [])
         self.assertIsNone(r["summary"])
 
-    def test_unique_by_name_and_russian_unique_by_base(self):
+    def test_unique_by_name_in_english_and_russian(self):
         r = self.run_eval("Item Class: Boots\nRarity: Unique\nSin Trek\nStealth Boots\n--------\nItem Level: 80\n",
                           found=lambda p, n: 5)
         q = self.searches[0]["query"]
@@ -1758,10 +1758,10 @@ Historic
         r = self.run_eval(f"Класс предмета: Ботинки\nРедкость: Уникальный\nПуть греха\n{ru_base}\n--------\nУровень предмета: 80\n",
                           found=lambda p, n: 5)
         q = self.searches[0]["query"]
-        self.assertNotIn("name", q)                                     # the Russian unique name cannot be mapped
-        self.assertEqual(q["type"], "Stealth Boots")
+        self.assertEqual(q["name"], "\u041f\u0443\u0442\u044c \u0433\u0440\u0435\u0445\u0430")
+        self.assertEqual(q["type"], ru_base)
         self.assertEqual(q["filters"]["type_filters"]["filters"]["rarity"]["option"], "unique")
-        self.assertTrue(any("could not be translated" in w for w in r["warnings"]))
+        self.assertFalse(any("could not be translated" in w for w in r["warnings"]))
 
     def test_tincture_is_searched_by_its_base_type(self):
         r = self.run_eval("Item Class: Tinctures\nRarity: Magic\nConcentrated Prismatic Tincture of Empowering\n--------\n"
@@ -1866,7 +1866,7 @@ Historic
 
         def down(*a, **k):
             raise urllib.error.URLError("Name or service not known")
-        with mock.patch("urllib.request.urlopen", down), mock.patch.object(trade, "stat_index", lambda: self.STATS), \
+        with mock.patch("urllib.request.urlopen", down), mock.patch.object(trade, "stat_index", lambda language="en": self.STATS), \
                 mock.patch("poecraft.engine.evaluator._price_league", return_value="Allflame"):
             r = render(evaluator.evaluate(self.BOOTS, league="Allflame"), "ru")
         self.assertEqual(r["listings"], [])
@@ -1923,7 +1923,7 @@ Historic
 
         def down(*a, **k):
             raise urllib.error.URLError("down")
-        with mock.patch("urllib.request.urlopen", down), mock.patch.object(trade, "stat_index", lambda: self.STATS), \
+        with mock.patch("urllib.request.urlopen", down), mock.patch.object(trade, "stat_index", lambda language="en": self.STATS), \
                 mock.patch("poecraft.engine.evaluator._price_league", return_value="Allflame"):
             r = render(evaluator.evaluate(self.BOOTS, league="Allflame"), "en")
         self.assertEqual([n["level"] for n in r["notes"] if "trade site" in n["text"].lower()][:1], ["error"])
@@ -2759,7 +2759,7 @@ class TradeLinksAndTemplates(unittest.TestCase):
             if short is None:
                 raise trade.TradeError("HTTP 429")
             return f"{trade.SITE}/trade/search/{lg}/{short}"
-        with mock.patch.object(trade, "stat_index", lambda: self.STATS), \
+        with mock.patch.object(trade, "stat_index", lambda language="en": self.STATS), \
                 mock.patch.object(trade, "leagues", leagues_fn), mock.patch.object(trade, "short_url", short_fn), \
                 mock.patch.object(tradelink, "_price_league", lambda: price_league):
             return render(tradelink.trade_search(base, 86, [], targets, league=league), "en")

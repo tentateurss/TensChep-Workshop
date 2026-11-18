@@ -22,7 +22,8 @@ function tt(key, vars = {}) {          // HTML; English fallback marked EN
 function tx(key) { const [text, fb] = lookup(key); return (fb ? "[EN] " : "") + text; }
 // server-rendered text: an untranslated key or game name carries "[EN] " - shown as the EN mark
 const en = (s) => esc(s ?? "").replace(/\[EN\] /g, '<sup class="en-mark">EN</sup> ');
-const fmtC = (c) => c == null ? "—" : c >= 1000 ? `${(c / 1000).toFixed(1)}k c` : `${c.toFixed(c < 10 ? 1 : 0)} c`;
+const fmtC = (c) => c == null || !Number.isFinite(c) || c <= 0 ? "—" : c < 0.001 ? "<0.001 c"
+  : c >= 1000 ? `${(c / 1000).toFixed(1)}k c` : `${Number(c.toFixed(c < 0.1 ? 3 : c < 10 ? 1 : 0))} c`;
 
 function renderStatic() {
   document.documentElement.lang = L.code;
@@ -42,8 +43,10 @@ function summaryHtml(r) {
   if (!s) return (r.passes || []).length && !r.message ? `<div class="summary none">${tt("eval.none")}</div>` : "";
   const conv = s.chaos != null && s.price.currency !== "chaos" ? ` <span class="muted">≈ ${esc(fmtC(s.chaos))}</span>` : "";
   const sub = s.offline_only ? tt("eval.summary.offline") : tt("eval.summary.online", {n: esc(s.online)});
-  return `<div class="summary ${s.offline_only ? "offline" : ""}"><span class="summary-label">${tt(s.reliable_estimate === false ? "eval.estimate" : "eval.summary.cheapest")}</span>
-    <span class="summary-price">${s.reliable_estimate === false ? tt("eval.noReliable") : fmtPrice(s.price)}</span>${s.reliable_estimate === false ? `<span class="summary-sub">${tt("eval.comparableAsk")}: ${fmtPrice(s.price)}${conv}</span>` : conv}<span class="summary-sub">${sub}</span>
+  const exactUnique = r.kind === "unique" && r.comparison_scope === "properties" && !(r.unmatched_properties || []).length;
+  const hidePrice = s.reliable_estimate === false && !exactUnique;
+  return `<div class="summary ${s.offline_only ? "offline" : ""}"><span class="summary-label">${tt(hidePrice ? "eval.estimate" : s.reliable_estimate === false ? "eval.comparableAsk" : "eval.summary.cheapest")}</span>
+    <span class="summary-price">${hidePrice ? tt("eval.noReliable") : fmtPrice(s.price)}</span>${hidePrice ? `<span class="summary-sub">${tt("eval.comparableAsk")}: ${fmtPrice(s.price)}${conv}</span>` : conv}<span class="summary-sub">${sub}</span>
     ${s.reliability_reason ? `<span class="summary-sub match-quality">${tt("eval.reliability." + s.reliability_reason)}</span>` : ""}
     ${s.sample_count ? `<span class="summary-sub">${tt("eval.sampleRange", {lo: esc(fmtC(s.sample_min)), hi: esc(fmtC(s.sample_max)), n: s.sample_count})}</span>` : ""}
     <span class="summary-sub">${tt("eval.asking")}</span>
