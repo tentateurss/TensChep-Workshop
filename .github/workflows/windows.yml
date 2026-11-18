@@ -28,7 +28,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force .browser-tools/baseline | Out-Null
-          gh release download v1.0.0-beta.2 --pattern TensChep-Workshop-Windows-x64.zip --pattern SHA256SUMS.txt --dir .browser-tools/baseline
+          gh release download v1.0.0-beta.3 --pattern TensChep-Workshop-Windows-x64.zip --pattern SHA256SUMS.txt --dir .browser-tools/baseline
           if ($LASTEXITCODE -ne 0) { throw 'Baseline download failed' }
           $expected = ((Get-Content .browser-tools/baseline/SHA256SUMS.txt) -split '\s+')[0]
           if ((Get-FileHash .browser-tools/baseline/TensChep-Workshop-Windows-x64.zip -Algorithm SHA256).Hash -ne $expected) { throw 'Baseline checksum mismatch' }
@@ -55,4 +55,4 @@ jobs:
           path: artifacts
       - env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" artifacts/* --verify-tag --prerelease --title "TensChep Workshop ${GITHUB_REF_NAME/-beta./ Beta }" --notes-file docs/RELEASE.md
+        run: gh release create "$GITHUB_REF_NAME" artifacts/* --verify-tag --prerelease --title "TensChep Workshop ${GITHUB_REF_NAME/-beta./ Beta }" --notes-file docs/RELEASE_NOTES.md
