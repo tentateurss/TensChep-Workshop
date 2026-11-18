@@ -2,7 +2,7 @@
 
 ## Скачать и запустить
 
-1. Откройте [GitHub Releases](https://github.com/tentateurss/TensChep-Workshop/releases). **Beta 4** — предварительный выпуск; стабильность и полнота игровых расчётов ещё имеют ограничения.
+1. Откройте [GitHub Releases](https://github.com/tentateurss/TensChep-Workshop/releases). **Beta 5** — предварительный выпуск; стабильность и полнота игровых расчётов ещё имеют ограничения.
 2. Скачайте **TensChep-Workshop-Windows-x64.zip**. Скачивайте приложение только со страницы проекта.
 3. Распакуйте архив целиком в обычную папку, в которую у вас есть право записи.
 4. Запустите **TensChep-Workshop.exe**. Не перемещайте EXE отдельно от папки `_internal`.

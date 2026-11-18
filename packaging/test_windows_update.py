@@ -10,7 +10,7 @@ from poecraft.installer import extract,ARCHIVE
 baseline=Path(os.environ.get('POECRAFT_UPDATE_BASELINE',root/'.browser-tools/old-build'))
 source=Path(os.environ.get('POECRAFT_TEST_DATA',root/'data'))
 archive=Path(os.environ.get('POECRAFT_TEST_ARCHIVE',root/'dist'/ARCHIVE))
-baseline_version=os.environ.get('POECRAFT_BASELINE_VERSION','1.0.0-beta.3')
+baseline_version=os.environ.get('POECRAFT_BASELINE_VERSION','1.0.0-beta.4')
 
 digest=archive.with_name('SHA256SUMS.txt').read_text().split()[0]
 

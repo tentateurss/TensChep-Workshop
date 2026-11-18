@@ -22,7 +22,12 @@ with tempfile.TemporaryDirectory(prefix='Workshop space ') as td:
      with urllib.request.urlopen('http://127.0.0.1:18767/api/health',timeout=1) as r: assert json.load(r)['data'];break
     except OSError: time.sleep(.2)
    else: raise AssertionError('server failed')
-   for path in ['/','/craft','/evaluator','/app.js','/style.css','/api/locale?lang=ru','/api/meta','/api/timeless/status']:
+   for path in ['/','/craft','/evaluator','/build','/build.html','/build.js','/build.css','/app.js','/style.css','/api/locale?lang=ru','/api/meta','/api/timeless/status']:
     with urllib.request.urlopen('http://127.0.0.1:18767'+path,timeout=10) as r: assert r.status==200,path
+   request=urllib.request.Request('http://127.0.0.1:18767/api/build/import',
+       json.dumps({'source':'<PathOfBuilding><Build className="Witch" targetVersion="3_0"/></PathOfBuilding>'}).encode(),
+       {'Content-Type':'application/json','Origin':'http://127.0.0.1:18767','X-Workshop-Build':'1'})
+   with urllib.request.urlopen(request,timeout=10) as r:
+    imported=json.load(r);assert imported['class']=='Witch' and imported['loadouts']==[]
   finally: p.terminate();p.wait(timeout=10)
  print('EXE smoke OK: isolated PATH, Cyrillic/spaces, resources, API, restart')

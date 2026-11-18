@@ -22,13 +22,14 @@ jobs:
           .build-venv/Scripts/python.exe -m pip install pyinstaller==6.22.3
           .build-venv/Scripts/python.exe packaging/build_windows.py
       - run: python packaging/smoke_windows.py
+      - run: python packaging/first_start_windows.py
       - name: Download published baseline for isolated updater tests
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force .browser-tools/baseline | Out-Null
-          gh release download v1.0.0-beta.3 --pattern TensChep-Workshop-Windows-x64.zip --pattern SHA256SUMS.txt --dir .browser-tools/baseline
+          gh release download v1.0.0-beta.4 --pattern TensChep-Workshop-Windows-x64.zip --pattern SHA256SUMS.txt --dir .browser-tools/baseline
           if ($LASTEXITCODE -ne 0) { throw 'Baseline download failed' }
           $expected = ((Get-Content .browser-tools/baseline/SHA256SUMS.txt) -split '\s+')[0]
           if ((Get-FileHash .browser-tools/baseline/TensChep-Workshop-Windows-x64.zip -Algorithm SHA256).Hash -ne $expected) { throw 'Baseline checksum mismatch' }
