@@ -67,7 +67,7 @@ class BuildImport(unittest.TestCase):
         self.assertNotIn('item', result['item_sets'][1]['slots'][0])  # references, not duplicated item text
         self.assertNotIn('dps', result)
         self.assertNotIn('999999999', json.dumps(result))
-        self.assertIn('separate_sets', result['warnings'])
+        self.assertIn('linked_sets', result['warnings'])
 
     def test_missing_information_stays_missing(self):
         result = B.import_build('<PathOfBuilding><Build/></PathOfBuilding>')

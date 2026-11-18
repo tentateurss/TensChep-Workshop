@@ -1150,5 +1150,19 @@
   "build.error.redirect": "Der Link leitet auf eine andere Adresse weiter. Lade den Export selbst herunter und füge seinen Code ein.",
   "build.error.network": "Build konnte nicht geladen werden. Die Seite ist nicht erreichbar oder verweigert den Zugriff. Versuche es später, füge den PoB-Code ein oder öffne die XML-Datei.",
   "build.error.unsafe_xml": "Diese XML-Datei enthält nicht unterstützte Dokumentdefinitionen oder Kodierung. Exportiere eine neue UTF-8-XML aus PoB.",
-  "build.error.forbidden": "Öffne Workshop unter der lokalen Adresse und wiederhole den Import."
+  "build.error.forbidden": "Öffne Workshop unter der lokalen Adresse und wiederhole den Import.",
+  "build.stages": "Verknüpfte Varianten des Autors",
+  "build.stage.none": "Keine eindeutig verknüpften Varianten gefunden. Wähle Baum, Gemmen und Ausrüstung unten unabhängig aus.",
+  "build.stage.independent": "Unabhängige Auswahl",
+  "build.stage.linked": "Baum, Gemmen und Ausrüstung wechseln gemeinsam gemäß den PoB-Verknüpfungen des Autors. Das ist keine empfohlene Levelreihenfolge.",
+  "build.stage.manual": "Wähle eine verknüpfte Variante oder kombiniere Sets über die einzelnen Auswahllisten unten.",
+  "build.linked_sets": "Verknüpfte Varianten folgen den PoB-Regeln für exakte Namen und {Kennungen}. Andere Sets bleiben unabhängig. PoB-Konfigurationen werden hier weder ausgeführt noch neu berechnet.",
+  "build.ambiguous_sets": "Einige Setnamen oder Verknüpfungskennungen sind mehrdeutig. Nur eindeutige Varianten lassen sich gemeinsam wechseln; andere Sets bleiben unabhängig.",
+  "build.gameVersion": "Workshop-Spieldaten",
+  "build.version.checking": "Spieldatenversion wird geprüft…",
+  "build.version.unknown": "Baum- oder Spieldatenversion ist unbekannt. Kompatibilität kann nicht bestätigt werden; der Build bleibt lesbar.",
+  "build.version.mismatch": "PoB-Baum: {tree}; Workshop-Spieldaten: {game}. Die Versionen unterscheiden sich: Knoten und Effekte können geändert sein. Der Import konvertiert den Build nicht.",
+  "build.caveats": "Aussagekraft und Grenzen des Imports",
+  "build.importBadge": "PoB-Angaben · keine Neuberechnung von DPS oder Verteidigung",
+  "build.treeHelp": "Über den importierten Baum"
 }

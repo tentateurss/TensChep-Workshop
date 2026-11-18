@@ -95,6 +95,53 @@ def _tree_url(value):
     return None
 
 
+def _loadouts(trees, skills, items, configs):
+    """PoB SyncLoadouts conventions; duplicate matches stay independent."""
+    ambiguous = False
+
+    def links(entry):
+        title = entry.get('title')
+        if not title:
+            return 'name', [], None
+        marker = re.search(r'\{([A-Za-z0-9,]+)\}', title)
+        if marker:
+            keys = list(dict.fromkeys(k for k in marker[1].split(',') if k))
+            return 'identifier', keys, title.replace(marker[0], '').strip() or None
+        return 'name', [title], title
+
+    def index(entries):
+        nonlocal ambiguous
+        result = {}
+        for entry in entries:
+            mode, keys, _ = links(entry)
+            for key in keys:
+                lookup = (mode, key)
+                if lookup in result:
+                    ambiguous = True
+                    result[lookup] = None
+                else:
+                    result[lookup] = entry
+        return result
+
+    indexes = [index(entries) for entries in (trees, skills, items, configs)]
+    result = []
+    for tree in trees:
+        mode, keys, label = links(tree)
+        for key in keys:
+            if indexes[0].get((mode, key)) is not tree:
+                continue
+            matches = [entries[0] if len(entries) == 1 else lookup.get((mode, key))
+                       for entries, lookup in zip((skills, items, configs), indexes[1:])]
+            if not matches[0] or not matches[1] or (configs and not matches[2]):
+                continue
+            result.append({'id': mode + ':' + key, 'title': (label or '') + (' {' + key + '}' if mode == 'identifier' else ''),
+                           'tree': tree['id'], 'skills': matches[0]['id'], 'items': matches[1]['id'],
+                           'config': matches[2]['id'] if matches[2] else None, 'association': mode})
+            if len(result) > 10000:
+                raise BuildImportError('too_large')
+    return result, ambiguous
+
+
 def import_build(source):
     """Accept an XML document, a Base64/zlib export or an HTTPS pobb.in link."""
     if not isinstance(source, str):
@@ -191,15 +238,24 @@ def import_build(source):
             item_sets.append({'id': ident, 'title': section.get('title'), 'slots': slots,
                               'second_weapon_set': _flag(section.get('useSecondWeaponSet', items.get('useSecondWeaponSet'))),
                               'active': items.get('activeItemSet') == ident or (section is items and len(sets) == 1)})
-    for sets in (skill_sets, item_sets):
+    config = root.find('Config')
+    config_sets = [{'id': c.get('id'), 'title': c.get('title')}
+                   for c in root.findall('Config/ConfigSet')]
+    if config is not None and not config_sets:
+        config_sets = [{'id': 'legacy', 'title': None}]
+    for sets in (skill_sets, item_sets, config_sets):
         identifiers = [s['id'] for s in sets]
         if any(not ident for ident in identifiers) or len(set(identifiers)) != len(identifiers):
             raise BuildImportError('format')
-    warnings = ['import_only', 'separate_sets', 'tree_view']
+    loadouts, ambiguous = _loadouts(trees, skill_sets, item_sets, config_sets)
+    warnings = ['import_only', 'linked_sets' if loadouts else 'separate_sets', 'tree_view']
+    if ambiguous:
+        warnings.append('ambiguous_sets')
     if any(s['item_id'] not in (None, '0', '') and s['item_id'] not in inventory for group in item_sets for s in group['slots']):
         warnings.append('missing_items')
     return {'game': 'poe1', 'class': build.get('className'), 'ascendancy': build.get('ascendClassName'),
             'level': _integer(build.get('level')), 'format_version': build.get('targetVersion'),
             'main_socket_group': _integer(build.get('mainSocketGroup')), 'trees': trees,
             'skill_sets': skill_sets, 'item_sets': item_sets, 'inventory': list(inventory.values()),
+            'loadouts': loadouts,
             'warnings': warnings, 'source': origin, 'sha256': hashlib.sha256(raw).hexdigest()}

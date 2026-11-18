@@ -7,13 +7,14 @@
 <header class="hub-header"><a class="brand" href="/">← TensChep Workshop</a><h1 class="tool-title" data-i18n="hub.tool.build.title">Build Assistant</h1>
 <div class="lang-box"><div id="langSelect" class="lang-select" role="group" aria-label="Language"></div></div></header>
 <main class="build-main">
-<section class="card import-card"><p class="build-eyebrow">PATH OF EXILE 1</p><h2 data-i18n="build.import"></h2>
+<details id="buildImportPanel" class="card import-card" open><summary data-i18n="build.import"></summary>
+<p class="build-eyebrow">PATH OF EXILE 1</p>
 <p class="muted" data-i18n="build.intro"></p>
 <form id="buildForm"><label for="buildSource" data-i18n="build.source"></label>
 <textarea id="buildSource" rows="4" spellcheck="false" placeholder="https://pobb.in/…"></textarea>
 <div class="row wrap"><button id="buildImport" class="primary" type="submit" data-i18n="build.button"></button>
 <button id="buildOpen" class="build-file" type="button" data-i18n="build.file"></button><input id="buildFile" type="file" accept=".xml,text/xml,application/xml" hidden>
 <span class="muted" data-i18n="build.limit"></span></div></form>
-<p id="buildStatus" role="status" aria-live="polite"></p></section>
+<p id="buildStatus" role="status" aria-live="polite"></p></details>
 <section id="buildResult" aria-live="polite"></section>
 </main><script src="/build.js"></script></body></html>

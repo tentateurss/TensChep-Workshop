@@ -1150,5 +1150,19 @@
   "build.error.redirect": "The build link redirected to another address. Download the PoB export yourself and paste its code instead.",
   "build.error.network": "Could not download the build. The site may be unavailable or denying access. Try later, paste the PoB code, or open its XML file.",
   "build.error.unsafe_xml": "This XML contains unsupported document definitions or encoding. Export a fresh UTF-8 XML from PoB.",
-  "build.error.forbidden": "Open Workshop on its local address and retry the import."
+  "build.error.forbidden": "Open Workshop on its local address and retry the import.",
+  "build.stages": "Author's linked variants",
+  "build.stage.none": "No unambiguous linked variants were found. Choose the tree, gems and equipment independently below.",
+  "build.stage.independent": "Independent selection",
+  "build.stage.linked": "The tree, gems and equipment switch together using the author's PoB links. This is not a suggested levelling order.",
+  "build.stage.manual": "Choose a linked variant, or mix sets yourself using the selectors below.",
+  "build.linked_sets": "Linked variants follow PoB's exact-title and {identifier} conventions. Unlinked sets remain independent. PoB configurations are not executed or recalculated here.",
+  "build.ambiguous_sets": "Some set names or linking markers are ambiguous. Only unambiguous variants can be switched together; other sets remain independent.",
+  "build.gameVersion": "Workshop game data",
+  "build.version.checking": "Checking the game-data version…",
+  "build.version.unknown": "The tree or game-data version is unknown. Compatibility cannot be confirmed. The build can still be viewed.",
+  "build.version.mismatch": "PoB tree: {tree}; Workshop game data: {game}. The versions differ: nodes and effects may have changed. Importing does not convert the build.",
+  "build.caveats": "What this import does and does not confirm",
+  "build.importBadge": "PoB information only · no DPS or defence recalculation",
+  "build.treeHelp": "About the imported tree"
 }
