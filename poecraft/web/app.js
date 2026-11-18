@@ -190,10 +190,13 @@ async function updatePrices() {
 
 // ------------------------------------------------------------------ bases
 let searchTimer;
+let baseSearchRevision = 0;
 async function searchBases() {
+  const revision = ++baseSearchRevision;
   const q = encodeURIComponent($("#baseSearch").value);
   const cls = encodeURIComponent($("#classFilter").value);
   const bases = await api(`/api/bases?q=${q}&cls=${cls}&lang=${L.code}`);
+  if (revision !== baseSearchRevision) return;
   $("#baseResults").innerHTML = bases.map((b) =>
     `<li data-id="${esc(b.id)}"><span>${g(b, "name")}</span><span class="muted">${g(b, "item_class")} · ${tt("base.lvl", {n: b.drop_level})}</span></li>`
   ).join("") || `<li class="muted">${tt("base.none")}</li>`;
@@ -727,7 +730,6 @@ function renderResult() {
         ${stat("plan.apps", Math.round(s.metrics.applications).toLocaleString())}
       </div>
       ${s.steps[0] ? `<div class="first-action"><b>${en(s.steps[0].title)}</b><p>${en(s.steps[0].action)}</p></div>` : ""}
-      ${warnings}
       ${r.cost_note ? `<div class="meta">${en(r.cost_note)}</div>` : ""}
       <details class="plan-details"><summary>${tt("plan.note")}</summary><div class="meta">${tt("plan.objective")} ${objLabel} ? ${tt(`objective.${r.objective.key}.desc`)}</div>${isRec ? `<div class="meta">${en(r.selection_note)}</div>` : ""}${sims}
       ${s.notes.map((n) => `<div class="meta">${tt("plan.note")} ${en(n)}</div>`).join("")}</details>
@@ -745,7 +747,12 @@ function renderResult() {
 
 // ----------------------------------------------------------------- events
 $("#langSelect").addEventListener("click", (e) => { const b = e.target.closest("[data-lang]"); if (b) setLang(b.dataset.lang); });
-$("#baseSearch").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(searchBases, 150); });
+$("#baseSearch").addEventListener("input", () => {
+  clearTimeout(searchTimer);
+  ++baseSearchRevision;
+  $("#baseResults").innerHTML = "";
+  searchTimer = setTimeout(searchBases, 150);
+});
 $("#classFilter").addEventListener("change", searchBases);
 $("#baseResults").addEventListener("click", (e) => { const li = e.target.closest("li[data-id]"); if (li) selectBase(li.dataset.id); });
 $("#ilvl").addEventListener("change", (e) => { state.ilvl = Math.max(1, Math.min(100, +e.target.value || 86)); loadFamilies(); });
