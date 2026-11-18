@@ -1438,7 +1438,7 @@ class HubPages(unittest.TestCase):
         js = (cfg.WEB_DIR / "hub.js").read_text(encoding="utf-8")
         self.assertIn(f'const BRAND = "{self.BRAND}";', js)
         tools = re.findall(r'\{id: "(\w+)", href: "([^"]+)"', js)
-        self.assertEqual(tools, [("craft", "/craft"), ("evaluator", "/evaluator")])   # two cards (was: one)
+        self.assertEqual(tools, [("craft", "/craft"), ("evaluator", "/evaluator"), ("build", "/build")])
         keys = ["hub.tagline", "hub.launch", "hub.more", "hub.footer"] + \
                [f"hub.tool.{t}.{part}" for t, _ in tools for part in ("title", "desc")]
         data = {c: json.loads((i18n.LOCALES_DIR / f"{c}.json").read_text(encoding="utf-8")) for c in ("en", "ru", "de")}

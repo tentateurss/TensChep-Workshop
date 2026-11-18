@@ -8,6 +8,7 @@ const BRAND = "TensChep Workshop";
 const TOOLS = [
   {id: "craft", href: "/craft", icon: "craft"},
   {id: "evaluator", href: "/evaluator", icon: "evaluator"},
+  {id: "build", href: "/build", icon: "tool"},
 ];
 
 // inline SVG icons (the CSP allows no external images); unknown ids fall back to a generic tool icon

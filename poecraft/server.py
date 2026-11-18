@@ -46,7 +46,7 @@ SECURITY_HEADERS = {
 }
 
 
-PAGES = {"/": "hub.html", "": "hub.html", "/hub": "hub.html", "/craft": "index.html", "/evaluator": "evaluator.html"}
+PAGES = {"/": "hub.html", "": "hub.html", "/hub": "hub.html", "/craft": "index.html", "/evaluator": "evaluator.html", "/build": "build.html"}
 
 
 class Busy(Exception):
@@ -475,6 +475,22 @@ class Handler(BaseHTTPRequestHandler):
             size = -1
         if size < 0 or size > config.MAX_BODY:
             return self._json({"error": f"request body larger than {config.MAX_BODY} bytes"}, 413)
+        if urlparse(self.path).path == "/api/build/import":
+            from . import buildassistant
+            expected = f"127.0.0.1:{self.server.server_address[1]}"
+            if (self.client_address[0] != "127.0.0.1" or self.headers.get("Host") != expected or
+                    self.headers.get("Origin") != "http://" + expected or self.headers.get("X-Workshop-Build") != "1"):
+                return self._json({"error": "build.error.forbidden"}, 403)
+            try:
+                body = json.loads(self.rfile.read(size))
+                if not isinstance(body, dict):
+                    raise ValueError('Expected an object')
+                return self._json(buildassistant.import_build(body.get("source")))
+            except buildassistant.BuildImportError as error:
+                self.log_message("PoB import rejected: %r", error.__cause__ or error)
+                return self._json({"error": "build.error." + str(error)}, 400)
+            except (ValueError, TypeError):
+                return self._json({"error": "build.error.format"}, 400)
         if urlparse(self.path).path == "/api/prices/update":
             if not self.production:      # public server: prices refresh in the background, never per click
                 ninja.update(league=parse_qs(urlparse(self.path).query).get("league", [None])[0])
