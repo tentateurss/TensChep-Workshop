@@ -1168,5 +1168,9 @@
   "eval.quote.unit": "Ориентировочная цена за штуку",
   "eval.quote.stack": "Стопка из {n}: примерно {c}",
   "eval.quote.note": "Рыночная котировка, а не реальные объявления или гарантированная цена продажи. Объявления загружаются только по вашему запросу.",
-  "eval.quote.listings": "Загрузить объявления Trade"
+  "eval.quote.listings": "Загрузить объявления Trade",
+  "eval.currency.label": "Валюта отображения",
+  "eval.currency.auto": "Автоматически",
+  "eval.currency.chaos": "Сфера хаоса",
+  "eval.currency.divine": "Божественная сфера"
 }

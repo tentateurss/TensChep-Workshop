@@ -37,16 +37,42 @@ function renderStatic() {
 
 const fmtPrice = (p) => `${esc(p.amount ?? "—")} ${esc(p.currency ?? "")}`;
 
+function displayRate(r) {
+  const rate = r.display_rate;
+  return rate && rate.source === "poe.ninja" && rate.league === r.league &&
+    Number.isFinite(rate.chaos_per_divine) && rate.chaos_per_divine > 0 &&
+    Number.isFinite(rate.expires_at) && Date.now() / 1000 <= rate.expires_at ? rate.chaos_per_divine : null;
+}
+
+function moneyHtml(p, chaos, r, estimated = true) {
+  const rate = displayRate(r);
+  if (!rate || !Number.isFinite(p.amount) || p.amount <= 0) return fmtPrice(p);
+  const c = p.currency === "chaos" ? p.amount : p.currency === "divine" ? p.amount * rate : estimated ? null : chaos;
+  if (!Number.isFinite(c) || c <= 0) return fmtPrice(p);
+  const currency = state.currency === "chaos" || state.currency === "divine" ? state.currency : c >= rate ? "divine" : "chaos";
+  const amount = n => n < 0.001 ? "<0.001" : new Intl.NumberFormat(L.code, {maximumSignificantDigits: 4}).format(n);
+  const div = c / rate;
+  if (!Number.isFinite(div) || div <= 0) return fmtPrice(p);
+  return currency === "divine" ? `${esc(amount(div))} div <span class="muted">≈ ${esc(amount(c))} c</span>`
+    : `${esc(amount(c))} c <span class="muted">≈ ${esc(amount(div))} div</span>`;
+}
+
+function currencyControl(r) {
+  if (!displayRate(r)) return "";
+  return `<label class="meta">${tt("eval.currency.label")} <select id="displayCurrency">${["auto", "chaos", "divine"].map(v =>
+    `<option value="${v}"${(state.currency || "auto") === v ? " selected" : ""}>${tt("eval.currency." + v)}</option>`).join("")}</select></label>`;
+}
+
 // the price at a glance - right under the item line, before anything else
 function summaryHtml(r) {
   const s = r.summary;
   if (!s) return (r.passes || []).length && !r.message ? `<div class="summary none">${tt("eval.none")}</div>` : "";
-  const conv = s.chaos != null && s.price.currency !== "chaos" ? ` <span class="muted">≈ ${esc(fmtC(s.chaos))}</span>` : "";
+  const price = moneyHtml(s.price, s.chaos, r, s.conversion_estimated);
   const sub = s.offline_only ? tt("eval.summary.offline") : tt("eval.summary.online", {n: esc(s.online)});
   const exactUnique = r.kind === "unique" && r.comparison_scope === "properties" && !(r.unmatched_properties || []).length;
   const hidePrice = s.reliable_estimate === false && !exactUnique;
   return `<div class="summary ${s.offline_only ? "offline" : ""}"><span class="summary-label">${tt(hidePrice ? "eval.estimate" : s.reliable_estimate === false ? "eval.comparableAsk" : "eval.summary.cheapest")}</span>
-    <span class="summary-price">${hidePrice ? tt("eval.noReliable") : fmtPrice(s.price)}</span>${hidePrice ? `<span class="summary-sub">${tt("eval.comparableAsk")}: ${fmtPrice(s.price)}${conv}</span>` : conv}<span class="summary-sub">${sub}</span>
+    <span class="summary-price">${hidePrice ? tt("eval.noReliable") : price}</span>${hidePrice ? `<span class="summary-sub">${tt("eval.comparableAsk")}: ${price}</span>` : ""}<span class="summary-sub">${sub}</span>
     ${s.reliability_reason ? `<span class="summary-sub match-quality">${tt("eval.reliability." + s.reliability_reason)}</span>` : ""}
     ${s.sample_count ? `<span class="summary-sub">${tt("eval.sampleRange", {lo: esc(fmtC(s.sample_min)), hi: esc(fmtC(s.sample_max)), n: s.sample_count})}</span>` : ""}
     <span class="summary-sub">${tt("eval.asking")}</span>
@@ -61,7 +87,7 @@ function listingsHtml(r) {
     return `<div class="card detail"><h2>${tt("eval.listings")}</h2><div class="table-wrap"><table class="listings">
       <thead><tr><th>#</th><th>${tt("eval.col.price")}</th><th>${tt("eval.col.chaos")}</th><th>${tt("eval.col.seller")}</th>
         <th>${tt("eval.col.ilvl")}</th><th>${tt("eval.col.mods")}</th></tr></thead><tbody>
-      ${r.listings.map((l, i) => `<tr><td>${i + 1}</td><td>${fmtPrice(l.price)}</td>
+      ${r.listings.map((l, i) => `<tr><td>${i + 1}</td><td>${moneyHtml(l.price, l.chaos, r, l.conversion_estimated)}</td>
         <td>${esc(fmtC(l.chaos))}</td><td><span class="badge ${l.online ? "online" : "offline"}">${tt(l.online ? "eval.online" : "eval.offline")}</span></td>
         <td>${l.ilvl ? esc(l.ilvl) : ""}</td><td class="mods">${l.mods.map(esc).join("<br>")}</td></tr>`).join("")}
       </tbody></table></div></div>`;
@@ -96,14 +122,14 @@ function effectLines(e) {
 }
 
 // "Find Equivalent Seeds": other seeds with the same must-have notable changes, priced on the trade site
-function equivalentsHtml(q) {
+function equivalentsHtml(q, r) {
   if (!q) return "";
   if (!q.seeds.length) return `<div class="tj-equiv"><h3>${tt("eval.tj.equivTitle")}</h3><p class="muted">${tt("eval.tj.equivNone", {n: esc(q.checked)})}</p></div>`;
   const head = q.closest ? tt("eval.tj.equivClosest", {n: esc(q.checked)})
                          : tt("eval.tj.equivFound", {exact: esc(q.exact), n: esc(q.checked), scanned: esc(q.scanned)});
   const rows = q.seeds.slice(0, 15).map((s) => {
     const l = s.listing;
-    const price = l ? `${fmtPrice(l.price)}${l.chaos != null && l.price.currency !== "chaos" ? ` <span class="muted">≈ ${esc(fmtC(l.chaos))}</span>` : ""}
+    const price = l ? `${moneyHtml(l.price, l.chaos, r, l.conversion_estimated)}
       <span class="badge ${l.online ? "online" : "offline"}">${tt(l.online ? "eval.online" : "eval.offline")}</span>` : `<span class="muted">${tt("eval.tj.equivUnlisted")}</span>`;
     const match = tt(s.matched === s.of ? (s.better ? "eval.tj.equivBetter" : "eval.tj.equivSame") : "eval.tj.equivPartial",
                      {m: esc(s.matched), n: esc(s.of)});
@@ -147,7 +173,7 @@ function timelessHtml(r) {
       <p class="hint">${tt("eval.tj.namesNote")} ${tt("eval.tj.credit")}</p>
       <div class="row wrap"><button id="tjEquiv" class="primary">${tt("eval.tj.equivBtn")}</button>
         <span class="hint">${tt("eval.tj.equivHint")}</span></div>
-      ${equivalentsHtml(t.equivalents)}`;
+      ${equivalentsHtml(t.equivalents, r)}`;
   }
   return `<div class="card detail tj"><h2>${tt("eval.tj.title")}</h2>${head}
     <div class="row wrap"><label>${tt("eval.tj.socket")} <select id="tjSocket">${opts}</select></label>
@@ -199,11 +225,12 @@ function renderResult() {
   if ((r.considered_properties || []).length) out.push(`<div class="card detail"><h2>${tt("eval.considered")}</h2><ul>${r.considered_properties.map(x=>`<li>${en(x)}</li>`).join("")}</ul><p class="hint">${tt("eval.uniqueTolerance")}</p></div>`);
   if ((r.unmatched_properties || []).length) out.push(`<div class="card notice"><b>${tt("eval.unmatched")}</b><ul>${r.unmatched_properties.map(x=>`<li>${en(x)}</li>`).join("")}</ul></div>`);
   if (r.timeless && (r.passes || []).length) out.push(`<h2 class="detail tj-trade">${tt("eval.tj.trade")}</h2>`);
+  out.push(currencyControl(r));
   out.push(summaryHtml(r));
   if (r.quote) {
     const q = r.quote;
-    out.push(`<div class="card summary"><span class="summary-price">${esc(fmtC(q.unit_chaos))}</span>
-      <p>${tt("eval.quote.unit")}${q.count > 1 ? ` · ${tt("eval.quote.stack", {n: q.count, c: esc(fmtC(q.total_chaos))})}` : ""}</p>
+    out.push(`<div class="card summary"><span class="summary-price">${moneyHtml({amount:q.unit_chaos,currency:"chaos"}, q.unit_chaos, r)}</span>
+      <p>${tt("eval.quote.unit")}${q.count > 1 ? ` · ${tt("eval.quote.stack", {n: q.count, c: moneyHtml({amount:q.total_chaos,currency:"chaos"}, q.total_chaos, r)})}` : ""}</p>
       <p class="hint">${tt("eval.quote.note")}</p><p class="meta">poe.ninja · ${esc(q.league)} · ${esc(q.fetched_at)}</p>
       <button id="loadListings">${tt("eval.quote.listings")}</button></div>`);
   }
@@ -324,7 +351,10 @@ async function popOut() {
 }
 
 // the calculator lives in the result area, which is re-rendered: listen on the container
-$("#result").addEventListener("change", (e) => { if (e.target.id === "tjSocket") pickSocket(e.target.value); });
+$("#result").addEventListener("change", (e) => {
+  if (e.target.id === "displayCurrency") { state.currency = e.target.value; renderResult(); }
+  if (e.target.id === "tjSocket") pickSocket(e.target.value);
+});
 $("#result").addEventListener("click", (e) => {
   if (e.target.id === "loadListings") { evaluate(false, null, true); return; }
   const s = e.target.closest("[data-socket]");

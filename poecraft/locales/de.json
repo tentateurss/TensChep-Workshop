@@ -1168,5 +1168,9 @@
   "eval.quote.unit": "Geschätzter Preis pro Stück",
   "eval.quote.stack": "Stapel mit {n}: ungefähr {c}",
   "eval.quote.note": "Marktrichtwert, keine tatsächlichen Angebote oder garantierter Verkaufspreis. Angebote werden erst auf Wunsch geladen.",
-  "eval.quote.listings": "Trade-Angebote laden"
+  "eval.quote.listings": "Trade-Angebote laden",
+  "eval.currency.label": "Anzeigewährung",
+  "eval.currency.auto": "Automatisch",
+  "eval.currency.chaos": "Chaossphäre",
+  "eval.currency.divine": "Göttliche Sphäre"
 }

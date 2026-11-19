@@ -273,8 +273,10 @@ def evaluate(text: str, league: str | None = None, data=None, socket=None, equiv
     token = PRICE_LEAGUE.set(selected)
     try:
         result = _evaluate_with_context(text, league, data, socket, equivalents)
-        status = Prices().live_status
+        prices = Prices()
+        status = prices.live_status
         result = dict(result, economy={k: v for k, v in status.items() if k != "prices"})
+        result['display_rate'] = _display_rate(prices, selected)
         result["warnings"] = list(result.get("warnings", []))
         if status.get("message_key"):
             result["warnings"].append(M(status["message_key"], **status.get("message_params", {})))
@@ -285,6 +287,23 @@ def evaluate(text: str, league: str | None = None, data=None, socket=None, equiv
         return _notes(result)
     finally:
         PRICE_LEAGUE.reset(token)
+
+
+def _display_rate(prices, league):
+    """Presentation only: never use an estimated or stale exchange rate."""
+    from ..data import ninja
+    status = prices.live_status
+    try:
+        fetched = calendar.timegm(time.strptime(status.get('fetched_at'), '%Y-%m-%dT%H:%M:%SZ'))
+    except (TypeError, ValueError):
+        return None
+    value = prices.live.get('Divine Orb')
+    if (status.get('state') != 'live' or str(status.get('league', '')).casefold() != league.casefold()
+            or not 0 <= time.time() - fetched <= ninja.MAX_CACHE
+            or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0):
+        return None
+    return {'chaos_per_divine': value, 'league': status['league'], 'source': 'poe.ninja',
+            'fetched_at': status['fetched_at'], 'expires_at': fetched + ninja.MAX_CACHE}
 
 
 def _quick_quote(text: str, league: str | None) -> dict | None:
@@ -337,6 +356,7 @@ def _quick_quote(text: str, league: str | None) -> dict | None:
     out.update(kind='currency', item={'type': item[0]}, summary=None,
                quote={'source': 'poe.ninja', 'league': status['league'], 'fetched_at': status['fetched_at'],
                       'unit_chaos': value, 'count': count, 'total_chaos': total},
+               display_rate=_display_rate(p, selection['league']),
                economy={k: v for k, v in status.items() if k != 'prices'})
     return out
 
@@ -413,7 +433,8 @@ def _summary(out: dict) -> dict | None:
               "wide_range" if values and min(values) > 0 and max(values) / min(values) >= 5 else
               "category" if out.get("kind") in ("base", "other") or out.get("comparison_scope") == "category" else
               "relaxed" if last.get("dropped") else "comparison")
-    return {"price": cheapest["price"], "chaos": cheapest.get("chaos"), "online": n_online, "offline_only": not online,
+    return {"price": cheapest["price"], "chaos": cheapest.get("chaos"),
+            "conversion_estimated": cheapest.get("conversion_estimated", True), "online": n_online, "offline_only": not online,
             "shown": len(listings), "sample_min": min(values) if values else None,
             "sample_max": max(values) if values else None, "sample_count": len(values),
             "relaxed": bool(last.get("dropped")), "dropped": last.get("dropped", []),

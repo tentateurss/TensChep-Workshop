@@ -1168,5 +1168,9 @@
   "eval.quote.unit": "Estimated price per item",
   "eval.quote.stack": "Stack of {n}: approximately {c}",
   "eval.quote.note": "Market quote, not actual listings or a guaranteed sale price. Listings are loaded only when you request them.",
-  "eval.quote.listings": "Load Trade listings"
+  "eval.quote.listings": "Load Trade listings",
+  "eval.currency.label": "Display currency",
+  "eval.currency.auto": "Automatic",
+  "eval.currency.chaos": "Chaos Orb",
+  "eval.currency.divine": "Divine Orb"
 }
