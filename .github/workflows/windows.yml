@@ -14,7 +14,7 @@ jobs:
         with:
           python-version: '3.13.13'
           architecture: x64
-      - run: python -m poecraft update --expect-version 3.30.0.2.2
+      - run: python -m poecraft update --expect-version 3.30.0.3
       - run: python -m unittest discover -s tests
       - run: python -m compileall -q poecraft
       - run: |
@@ -29,13 +29,15 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force .browser-tools/baseline | Out-Null
-          gh release download v1.0.0-beta.4 --pattern TensChep-Workshop-Windows-x64.zip --pattern SHA256SUMS.txt --dir .browser-tools/baseline
+          gh release download v1.0.0-beta.5 --pattern TensChep-Workshop-Windows-x64.zip --pattern SHA256SUMS.txt --dir .browser-tools/baseline
           if ($LASTEXITCODE -ne 0) { throw 'Baseline download failed' }
           $expected = ((Get-Content .browser-tools/baseline/SHA256SUMS.txt) -split '\s+')[0]
           if ((Get-FileHash .browser-tools/baseline/TensChep-Workshop-Windows-x64.zip -Algorithm SHA256).Hash -ne $expected) { throw 'Baseline checksum mismatch' }
           Expand-Archive .browser-tools/baseline/TensChep-Workshop-Windows-x64.zip .browser-tools/baseline/files
           Move-Item .browser-tools/baseline/files/TensChep-Workshop .browser-tools/old-build
       - run: python packaging/test_windows_update.py
+        env:
+          POECRAFT_BASELINE_VERSION: 1.0.0-beta.5
       - uses: actions/upload-artifact@v4
         with:
           name: Windows-x64
