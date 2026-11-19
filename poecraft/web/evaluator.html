@@ -18,8 +18,8 @@
 
 <main class="eval-main" id="evalApp">
   <section class="card input-card">
-    <h2 class="detail" data-i18n="eval.paste">Paste an item (Ctrl+C in game)</h2>
-    <textarea id="itemText" rows="9" spellcheck="false" data-i18n-placeholder="eval.placeholder"></textarea>
+    <h2 class="detail" id="pasteLabel" data-i18n="eval.paste">Paste an item (Ctrl+C in game)</h2>
+    <textarea id="itemText" rows="6" spellcheck="false" aria-labelledby="pasteLabel" data-i18n-placeholder="eval.placeholder"></textarea>
     <div class="row wrap">
       <label class="detail"><span data-i18n="trade.league">League</span> <select id="league"></select></label>
       <button id="evalBtn" class="primary" data-i18n="eval.button">Evaluate</button>

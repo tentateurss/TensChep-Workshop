@@ -59,7 +59,7 @@ function moneyHtml(p, chaos, r, estimated = true) {
 
 function currencyControl(r) {
   if (!displayRate(r)) return "";
-  return `<label class="meta">${tt("eval.currency.label")} <select id="displayCurrency">${["auto", "chaos", "divine"].map(v =>
+  return `<label class="meta price-unit-control">${tt("eval.currency.label")} <select id="displayCurrency">${["auto", "chaos", "divine"].map(v =>
     `<option value="${v}"${(state.currency || "auto") === v ? " selected" : ""}>${tt("eval.currency." + v)}</option>`).join("")}</select></label>`;
 }
 
@@ -76,7 +76,6 @@ function summaryHtml(r) {
     ${s.reliability_reason ? `<span class="summary-sub match-quality">${tt("eval.reliability." + s.reliability_reason)}</span>` : ""}
     ${s.sample_count ? `<span class="summary-sub">${tt("eval.sampleRange", {lo: esc(fmtC(s.sample_min)), hi: esc(fmtC(s.sample_max)), n: s.sample_count})}</span>` : ""}
     <span class="summary-sub">${tt("eval.asking")}</span>
-    ${r.value_share && !r.manual_filters ? `<span class="summary-sub">${tt("eval.valueTolerance", {p: Math.round(r.value_share * 100)})}</span>` : ""}
     ${s.match_quality ? `<span class="summary-sub match-quality">${tt("eval.match." + s.match_quality)}</span>` : ""}
     ${s.relaxed ? `<span class="summary-sub relaxed-mods">${tt("eval.relaxedMods", {mods: s.dropped.map(en).join("; ")})}</span>` : ""}
     ${r.kind === "unique" ? `<span class="summary-sub">${tt("m.eval.unique_scope")}</span>` : ""}</div>`;
@@ -84,13 +83,13 @@ function summaryHtml(r) {
 
 function listingsHtml(r) {
   if (r.listings && r.listings.length) {
-    return `<div class="card detail"><h2>${tt("eval.listings")}</h2><div class="table-wrap"><table class="listings">
+    return `<details class="card detail market-listings"><summary>${tt("eval.listings")} <span class="muted">(${r.listings.length})</span></summary><div class="table-wrap"><table class="listings">
       <thead><tr><th>#</th><th>${tt("eval.col.price")}</th><th>${tt("eval.col.chaos")}</th><th>${tt("eval.col.seller")}</th>
         <th>${tt("eval.col.ilvl")}</th><th>${tt("eval.col.mods")}</th></tr></thead><tbody>
       ${r.listings.map((l, i) => `<tr><td>${i + 1}</td><td>${moneyHtml(l.price, l.chaos, r, l.conversion_estimated)}</td>
         <td>${esc(fmtC(l.chaos))}</td><td><span class="badge ${l.online ? "online" : "offline"}">${tt(l.online ? "eval.online" : "eval.offline")}</span></td>
         <td>${l.ilvl ? esc(l.ilvl) : ""}</td><td class="mods">${l.mods.map(esc).join("<br>")}</td></tr>`).join("")}
-      </tbody></table></div></div>`;
+      </tbody></table></div></details>`;
   }
   return "";
 }
@@ -197,15 +196,29 @@ function pickSocket(id) {
 
 function noticesHtml(notes) {
   if (!notes.length) return "";
-  const items = notes.map((n, i) => `<li>${en(n.text)}${n.copy ? ` <button class="copy-mod" data-copy="${i}" title="${esc(tx("eval.notes.copyHint"))}">${tt("eval.notes.copy")}</button>` : ""}</li>`).join("");
+  const items = notes.map((n, i) => `<li${n.level === "error" ? ' class="note-error" role="alert"' : ''}>${en(n.text)}${n.copy ? ` <button class="copy-mod" data-copy="${i}" title="${esc(tx("eval.notes.copyHint"))}">${tt("eval.notes.copy")}</button>` : ""}</li>`).join("");
   state.notes = notes;
-  return `<details class="notices detail"><summary>${tt("eval.notes.summary", {n: notes.length})}</summary><ul>${items}</ul></details>`;
+  return `<aside class="assessment-warnings"><b>${tt("eval.market.caution")}</b><ul>${items}</ul></aside>`;
+}
+
+function marketMeta(r) {
+  const quote = r.quote;
+  const searched = (r.passes || []).length || (r.listings || []).length || r.search_url;
+  let freshness = r.cached ? tt("eval.cached") : tt("eval.market.unknownAge");
+  if (quote && Number.isFinite(Date.parse(quote.fetched_at))) {
+    const date = new Date(quote.fetched_at);
+    freshness = `<time datetime="${esc(quote.fetched_at)}" title="${esc(quote.fetched_at)}">${esc(new Intl.DateTimeFormat(L.code,
+      {month:"short", day:"numeric", hour:"2-digit", minute:"2-digit", timeZoneName:"short"}).format(date))}</time>`;
+  }
+  return `<div class="market-meta"><span class="badge">${quote ? "poe.ninja" : searched ? tt("eval.market.trade") : tt("eval.market.noSource")}</span>
+    <span>${tt("eval.league", {league:esc(r.league || "—")})}</span>${quote || searched ? `<span>${freshness}</span>` : ""}</div>`;
 }
 
 function filtersHtml(r) {
   if (!r.filters || !r.filters.length) return "";
-  return `<details class="card eval-filters" open><summary>${tt("eval.filters.title")}</summary>
+  return `<details class="card eval-filters"><summary>${tt("eval.filters.title")}</summary>
     <p class="hint">${tt("eval.filters.hint")}</p><form id="manualFilters">
+    ${r.value_share && !r.manual_filters ? `<p class="hint">${tt("eval.valueTolerance", {p: Math.round(r.value_share * 100)})}</p>` : ""}
     ${r.filters.map((f, i) => {
       const draft = state.filterDraft[i];
       return `<div class="eval-filter" data-filter="${i}"><label><input type="checkbox" data-field="enabled" ${(f.editable ? draft.enabled : f.enabled) ? "checked" : ""} ${f.editable ? "" : "disabled"}> ${en(f.label)}</label>
@@ -227,31 +240,29 @@ function renderResult() {
   const r = state.result;
   if (!r) return;
   const out = [];
-  if (r.message) out.push(`<div class="card notice">${en(r.message)}</div>`);
-  if (r.unidentified) out.push(`<div class="card notice">${tt("m.eval.unidentified")}</div>`);
   const it = r.item || {};
-  const head = [it.name, it.type].filter(Boolean).map(esc).join(" · ");
-  if (head) {
-    out.push(`<div class="meta item-heading"><b>${head}</b>${it.ilvl ? ` · ${tt("eval.ilvl", {n: it.ilvl})}` : ""} · ${tt("eval.league", {league: esc(r.league)})}` +
-             `${r.cached ? ` · <span class="muted">${tt("eval.cached")}</span>` : ""}</div>`);
-  }
-  if (r.timeless) out.push(timelessHtml(r));
-  if ((r.considered_properties || []).length) out.push(`<div class="card detail"><h2>${tt("eval.considered")}</h2><ul>${r.considered_properties.map(x=>`<li>${en(x)}</li>`).join("")}</ul><p class="hint">${tt("eval.uniqueTolerance")}</p></div>`);
-  if ((r.unmatched_properties || []).length) out.push(`<div class="card notice"><b>${tt("eval.unmatched")}</b><ul>${r.unmatched_properties.map(x=>`<li>${en(x)}</li>`).join("")}</ul></div>`);
-  if (r.timeless && (r.passes || []).length) out.push(`<h2 class="detail tj-trade">${tt("eval.tj.trade")}</h2>`);
+  out.push(`<article class="evaluation-overview"><div class="item-heading"><h2>${esc(it.name || it.type || tx("eval.estimate"))}</h2>
+    ${it.name && it.type ? `<span class="muted">${esc(it.type)}</span>` : ""}${it.ilvl ? `<span class="muted">${tt("eval.ilvl", {n: it.ilvl})}</span>` : ""}</div>`);
+  out.push(marketMeta(r));
   out.push(currencyControl(r));
   out.push(summaryHtml(r));
   if (r.quote) {
     const q = r.quote;
-    out.push(`<div class="card summary"><span class="summary-price">${moneyHtml({amount:q.unit_chaos,currency:"chaos"}, q.unit_chaos, r)}</span>
+    out.push(`<div class="summary quote-summary"><span class="summary-price">${moneyHtml({amount:q.unit_chaos,currency:"chaos"}, q.unit_chaos, r)}</span>
       <p>${tt("eval.quote.unit")}${q.count > 1 ? ` · ${tt("eval.quote.stack", {n: q.count, c: moneyHtml({amount:q.total_chaos,currency:"chaos"}, q.total_chaos, r)})}` : ""}</p>
-      <p class="hint">${tt("eval.quote.note")}</p><p class="meta">poe.ninja · ${esc(q.league)} · ${esc(q.fetched_at)}</p>
+      <p class="hint">${tt("eval.quote.note")}</p>
       <button id="loadListings">${tt("eval.quote.listings")}</button></div>`);
   }
+  out.push(`</article>`);
+  if (r.message) out.push(`<div class="card notice" role="status">${en(r.message)}</div>`);
   if (r.ninja_price != null) out.push(`<div class="meta">${tt("eval.ninja", {c: esc(fmtC(r.ninja_price))})}</div>`);
-  // real failures stay visible (small); everything else goes into one collapsible notice at the bottom
   const notes = r.notes || (r.warnings || []).map((w) => ({text: w, level: "info", copy: null}));
-  for (const n of notes.filter((n) => n.level === "error")) out.push(`<div class="note-error">${en(n.text)}</div>`);
+  const covered = new Set(r.summary && r.kind === "unique" ? [tx("m.eval.unique_scope")] : []);
+  const seen = new Set();
+  out.push(noticesHtml(notes.filter(n => !covered.has(n.text) && !seen.has(n.text) && seen.add(n.text))));
+  if ((r.unmatched_properties || []).length) out.push(`<details class="card notice"><summary>${tt("eval.unmatched")} (${r.unmatched_properties.length})</summary><ul>${r.unmatched_properties.map(x=>`<li>${en(x)}</li>`).join("")}</ul></details>`);
+  if (r.timeless) out.push(timelessHtml(r));
+  if ((r.considered_properties || []).length) out.push(`<details class="card detail"><summary>${tt("eval.considered")}</summary><ul>${r.considered_properties.map(x=>`<li>${en(x)}</li>`).join("")}</ul><p class="hint">${tt("eval.uniqueTolerance")}</p></details>`);
   out.push(filtersHtml(r));
   out.push(listingsHtml(r));
   if ((r.ranking || []).length) {
@@ -263,13 +274,12 @@ function renderResult() {
     </tbody></table></div></details>`);
   }
   if ((r.passes || []).length) {
-    out.push(`<div class="card detail"><h2>${tt("eval.passes")}</h2><ol class="passes">${r.passes.map((p) =>
+    out.push(`<details class="card detail"><summary>${tt("eval.passes")}</summary><ol class="passes">${r.passes.map((p) =>
       `<li>${p.dropped.length ? tt("eval.pass.without", {list: p.dropped.map(en).join(", ")}) : tt("eval.pass.all")}
         ${p.status === "any" ? ` <span class="muted">(${tt("eval.pass.offline")})</span>` : ""}
         — <b>${p.total == null ? "…" : tt("eval.pass.found", {n: p.total})}</b></li>`).join("")}</ol>
-      ${r.search_url ? `<a href="${esc(r.search_url)}" target="_blank" rel="noopener">${tt("eval.open")}</a>` : ""}</div>`);
+      ${r.search_url ? `<a href="${esc(r.search_url)}" target="_blank" rel="noopener">${tt("eval.open")}</a>` : ""}</details>`);
   }
-  out.push(noticesHtml(notes.filter((n) => n.level !== "error")));
   $("#result").innerHTML = out.join("");
   if (r.timeless && r.timeless.sockets) loadTree();
 }
@@ -286,7 +296,7 @@ async function evaluate(withSocket = false, equivalents = null, loadListings = f
   const prev = state.result && state.result.timeless;
   // a re-evaluation of the same jewel (language switch, Evaluate again) keeps the calculation and the seed search
   const eq = equivalents || (same && prev && prev.equivalents ? (state.eqNodes || []) : null);
-  $("#result").innerHTML = `<div class="card muted">${tt(eq ? "eval.tj.equivBusy" : document.body.classList.contains("compact") || state.pip ? "eval.busyShort" : "eval.busy")}</div>`;
+  $("#result").innerHTML = `<div class="card muted evaluation-loading" role="status">${tt(eq ? "eval.tj.equivBusy" : document.body.classList.contains("compact") || state.pip ? "eval.busyShort" : "eval.busy")}</div>`;
   try {
     const r = await fetch("/api/evaluate", {method: "POST", headers: {"Content-Type": "application/json", "X-Poecraft-Lang": L.code},
       body: JSON.stringify({text, lang: language, league: league || null, equivalents: eq, load_listings: loadListings,
@@ -302,7 +312,9 @@ async function evaluate(withSocket = false, equivalents = null, loadListings = f
     renderResult();
   } catch (e) {
     if (generation !== evaluationGeneration) return;
-    $("#result").innerHTML = `<div class="card error">${en(e.message)}</div>`;
+    const transportError = e.name === "TypeError" || e.name === "SyntaxError";
+    $("#result").innerHTML = `<div class="card error" role="alert">${transportError ? tt("eval.market.requestError") : en(e.message)}
+      ${transportError ? `<details><summary>${tt("eval.market.technical")}</summary>${en(e.message)}</details>` : ""}</div>`;
   } finally {
     if (generation === evaluationGeneration) $("#evalBtn").disabled = false;
   }

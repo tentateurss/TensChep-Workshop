@@ -1189,5 +1189,11 @@
   "m.eval.filters.range": "The minimum cannot exceed the maximum, including overlapping modifiers.",
   "m.eval.filters.manual": "Results match your chosen filters, which may differ from the pasted item. Enabled filters were not automatically relaxed.",
   "eval.reliability.manual": "Comparison for manually selected filters; not a confirmed value of the pasted item",
-  "eval.match.manual": "Manual filters"
+  "eval.match.manual": "Manual filters",
+  "eval.market.trade": "Official Trade",
+  "eval.market.unknownAge": "Listing age is not provided",
+  "eval.market.noSource": "No confirmed price",
+  "eval.market.caution": "About this estimate",
+  "eval.market.requestError": "Could not load a price. Check the connection and try evaluating again.",
+  "eval.market.technical": "Technical details"
 }

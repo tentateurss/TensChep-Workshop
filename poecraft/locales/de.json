@@ -1189,5 +1189,11 @@
   "m.eval.filters.range": "Das Minimum darf das Maximum nicht überschreiten, auch bei überlappenden Modifikatoren.",
   "m.eval.filters.manual": "Angebote entsprechen den gewählten Filtern und können vom eingefügten Gegenstand abweichen. Aktivierte Filter wurden nicht automatisch gelockert.",
   "eval.reliability.manual": "Vergleich mit manuellen Filtern, kein bestätigter Wert des eingefügten Gegenstands",
-  "eval.match.manual": "Manuelle Filter"
+  "eval.match.manual": "Manuelle Filter",
+  "eval.market.trade": "Offizieller Handel",
+  "eval.market.unknownAge": "Alter der Angebote nicht angegeben",
+  "eval.market.noSource": "Kein bestätigter Preis",
+  "eval.market.caution": "Zu dieser Schätzung",
+  "eval.market.requestError": "Preis konnte nicht geladen werden. Prüfen Sie die Verbindung und versuchen Sie es erneut.",
+  "eval.market.technical": "Technische Details"
 }
