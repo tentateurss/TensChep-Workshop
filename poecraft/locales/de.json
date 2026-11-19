@@ -1164,5 +1164,9 @@
   "build.version.mismatch": "PoB-Baum: {tree}; Workshop-Spieldaten: {game}. Die Versionen unterscheiden sich: Knoten und Effekte können geändert sein. Der Import konvertiert den Build nicht.",
   "build.caveats": "Aussagekraft und Grenzen des Imports",
   "build.importBadge": "PoB-Angaben · keine Neuberechnung von DPS oder Verteidigung",
-  "build.treeHelp": "Über den importierten Baum"
+  "build.treeHelp": "Über den importierten Baum",
+  "eval.quote.unit": "Geschätzter Preis pro Stück",
+  "eval.quote.stack": "Stapel mit {n}: ungefähr {c}",
+  "eval.quote.note": "Marktrichtwert, keine tatsächlichen Angebote oder garantierter Verkaufspreis. Angebote werden erst auf Wunsch geladen.",
+  "eval.quote.listings": "Trade-Angebote laden"
 }

@@ -22,6 +22,7 @@ import math
 import re
 import threading
 import time
+import calendar
 from concurrent.futures import Future
 from functools import lru_cache
 
@@ -260,8 +261,13 @@ def _plan_drops(droppable: list[dict], passes_left: int) -> list[list[dict]]:
 
 # ------------------------------------------------------------------ entry
 @trade.measure_evaluation
-def evaluate(text: str, league: str | None = None, data=None, socket=None, equivalents=None):
+def evaluate(text: str, league: str | None = None, data=None, socket=None, equivalents=None, load_listings=False):
     from .prices import PRICE_LEAGUE, Prices
+    if not load_listings:
+        quote = _quick_quote(text, league)
+        if quote is not None:
+            trade.count_request("evaluation.quote_hit")
+            return _notes(quote)
     lg = trade.current_league(_price_league())
     selected = league or lg["league"]
     token = PRICE_LEAGUE.set(selected)
@@ -279,6 +285,60 @@ def evaluate(text: str, league: str | None = None, data=None, socket=None, equiv
         return _notes(result)
     finally:
         PRICE_LEAGUE.reset(token)
+
+
+def _quick_quote(text: str, league: str | None) -> dict | None:
+    """Only unambiguous stackable exchange items; never infer a variant's price."""
+    from .prices import Prices
+    from ..data import ninja
+    h = _header(text)
+    if h['kind'] != 'currency' or len(h['head']) != 1 or _status_filters(text):
+        return None
+    names = _all_names()
+    item = names.get(_norm(h['head'][0]))
+    if not item or item[1] not in ('StackableCurrency', 'DelveStackableSocketableCurrency',
+                                 'DelveSocketableCurrency', 'MapFragment'):
+        return None
+    count = 1
+    for line in h['body']:
+        stack = re.fullmatch(r'(?:Stack Size|Размер стопки|Stapelgröße)\s*:\s*([\d,. ]+)\s*/\s*([\d,. ]+)', line, re.I)
+        if stack:
+            try:
+                count = int(re.sub(r'\D', '', stack[1]))
+                maximum = int(re.sub(r'\D', '', stack[2]))
+            except ValueError:
+                return None
+            if not 0 < count <= maximum:
+                return None
+        elif ':' in line or '：' in line:
+            return None  # quality, level, charges and other variant properties need a filtered search
+    selection = {'league': league, 'source': 'user'} if league else trade.current_league(_price_league())
+    if selection['source'] == 'fallback':
+        return None
+    p = Prices(league=selection['league'])
+    status = p.live_status
+    try:
+        age = time.time() - calendar.timegm(time.strptime(status.get('fetched_at'), '%Y-%m-%dT%H:%M:%SZ'))
+    except (TypeError, ValueError):
+        return None
+    if (status.get('state') != 'live' or not status.get('league') or not 0 <= age <= ninja.MAX_CACHE
+            or selection['league'].casefold() != status['league'].casefold()):
+        return None
+    value = p.live.get(item[0])
+    if not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
+        return None
+    try:
+        total = value * count
+        if not math.isfinite(total):
+            return None
+    except OverflowError:
+        return None
+    out = _base_result(selection)
+    out.update(kind='currency', item={'type': item[0]}, summary=None,
+               quote={'source': 'poe.ninja', 'league': status['league'], 'fetched_at': status['fetched_at'],
+                      'unit_chaos': value, 'count': count, 'total_chaos': total},
+               economy={k: v for k, v in status.items() if k != 'prices'})
+    return out
 
 
 def _evaluate_with_context(text: str, league: str | None = None, data: GameData | None = None, socket: str | None = None,
@@ -404,6 +464,9 @@ def _evaluate(text: str, lg: dict, data: GameData) -> dict:
     if parsed.get("base_id"):
         return _by_type(out, data.bases[parsed["base_id"]].name, lg, "base", parsed)
     if hits:
+        if h['kind'] == 'currency' and any(':' in line and not re.match(
+                r'(?:Stack Size|Размер стопки|Stapelgröße)\s*:', line, re.I) for line in h['body']):
+            out['warnings'].append(M('m.eval.type_only', base=hits[0][0], what=M('eval.unfiltered.other')))
         if rarity_is(rarity, ("rare", "редк", "selten", "magic", "волшебн", "magisch")):
             # a rare / magic item of a class the crafting data does not hold (jewels, maps ...): only its type is searched
             out["warnings"].append(M("m.eval.type_only", base=hits[0][0], what=_unfiltered(hits[0])))
@@ -629,11 +692,6 @@ def _by_type(out: dict, type_name: str, lg: dict, kind: str, parsed) -> dict:
         out["warnings"].extend(parsed.get("warnings", []))
         if parsed.get("rarity") in ("rare", "magic"):
             out["warnings"].append(M("m.eval.base_only"))
-    if kind == "currency":                   # poe.ninja's price next to the listings (live data only)
-        from .prices import Prices
-        p = Prices()
-        if p.source(type_name) == "live":
-            out["ninja_price"] = p.get(type_name)
     if kind == "gem":
         out["warnings"].append(M("m.eval.gem_note"))
 

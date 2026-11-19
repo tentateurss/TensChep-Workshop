@@ -1164,5 +1164,9 @@
   "build.version.mismatch": "PoB tree: {tree}; Workshop game data: {game}. The versions differ: nodes and effects may have changed. Importing does not convert the build.",
   "build.caveats": "What this import does and does not confirm",
   "build.importBadge": "PoB information only · no DPS or defence recalculation",
-  "build.treeHelp": "About the imported tree"
+  "build.treeHelp": "About the imported tree",
+  "eval.quote.unit": "Estimated price per item",
+  "eval.quote.stack": "Stack of {n}: approximately {c}",
+  "eval.quote.note": "Market quote, not actual listings or a guaranteed sale price. Listings are loaded only when you request them.",
+  "eval.quote.listings": "Load Trade listings"
 }

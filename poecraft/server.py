@@ -507,8 +507,9 @@ class Handler(BaseHTTPRequestHandler):
                 socket = str(body["socket"]) if body.get("socket") else None      # Timeless Jewel calculator
                 eq = body.get("equivalents")                                     # "Find Equivalent Seeds"
                 eq = [str(x) for x in eq][:100] if isinstance(eq, list) else None
+                options = {"load_listings": True} if body.get("load_listings") is True else {}
                 return self._json(render(evaluate(str(body.get("text", "")), league=body.get("league") or None,
-                                                  socket=socket, equivalents=eq), lang))
+                                                  socket=socket, equivalents=eq, **options), lang))
             except (KeyError, ValueError, TypeError) as e:
                 if isinstance(e, TypeError):
                     traceback.print_exc()

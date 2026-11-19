@@ -200,6 +200,13 @@ function renderResult() {
   if ((r.unmatched_properties || []).length) out.push(`<div class="card notice"><b>${tt("eval.unmatched")}</b><ul>${r.unmatched_properties.map(x=>`<li>${en(x)}</li>`).join("")}</ul></div>`);
   if (r.timeless && (r.passes || []).length) out.push(`<h2 class="detail tj-trade">${tt("eval.tj.trade")}</h2>`);
   out.push(summaryHtml(r));
+  if (r.quote) {
+    const q = r.quote;
+    out.push(`<div class="card summary"><span class="summary-price">${esc(fmtC(q.unit_chaos))}</span>
+      <p>${tt("eval.quote.unit")}${q.count > 1 ? ` · ${tt("eval.quote.stack", {n: q.count, c: esc(fmtC(q.total_chaos))})}` : ""}</p>
+      <p class="hint">${tt("eval.quote.note")}</p><p class="meta">poe.ninja · ${esc(q.league)} · ${esc(q.fetched_at)}</p>
+      <button id="loadListings">${tt("eval.quote.listings")}</button></div>`);
+  }
   if (r.ninja_price != null) out.push(`<div class="meta">${tt("eval.ninja", {c: esc(fmtC(r.ninja_price))})}</div>`);
   // real failures stay visible (small); everything else goes into one collapsible notice at the bottom
   const notes = r.notes || (r.warnings || []).map((w) => ({text: w, level: "info", copy: null}));
@@ -225,7 +232,7 @@ function renderResult() {
   if (r.timeless && r.timeless.sockets) loadTree();
 }
 
-async function evaluate(withSocket = false, equivalents = null) {
+async function evaluate(withSocket = false, equivalents = null, loadListings = false) {
   const text = $("#itemText").value.trim();
   if (!text) return;
   const generation = ++evaluationGeneration;
@@ -239,7 +246,7 @@ async function evaluate(withSocket = false, equivalents = null) {
   $("#result").innerHTML = `<div class="card muted">${tt(eq ? "eval.tj.equivBusy" : document.body.classList.contains("compact") || state.pip ? "eval.busyShort" : "eval.busy")}</div>`;
   try {
     const r = await fetch("/api/evaluate", {method: "POST", headers: {"Content-Type": "application/json", "X-Poecraft-Lang": L.code},
-      body: JSON.stringify({text, lang: language, league: league || null, equivalents: eq,
+      body: JSON.stringify({text, lang: language, league: league || null, equivalents: eq, load_listings: loadListings,
         socket: (withSocket === true || (prev && prev.calc)) && same ? state.socket : null})});
     const j = await r.json();
     if (generation !== evaluationGeneration || league !== $("#league").value || language !== L.code || text !== $("#itemText").value.trim()) return;
@@ -319,6 +326,7 @@ async function popOut() {
 // the calculator lives in the result area, which is re-rendered: listen on the container
 $("#result").addEventListener("change", (e) => { if (e.target.id === "tjSocket") pickSocket(e.target.value); });
 $("#result").addEventListener("click", (e) => {
+  if (e.target.id === "loadListings") { evaluate(false, null, true); return; }
   const s = e.target.closest("[data-socket]");
   if (s) { pickSocket(s.dataset.socket); return; }
   const copyBtn = e.target.closest(".copy-mod");
