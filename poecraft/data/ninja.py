@@ -24,6 +24,7 @@ from __future__ import annotations
 import calendar
 import hashlib
 import json
+import math
 import os
 import re
 import threading
@@ -32,6 +33,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 from urllib.parse import quote
+from email.utils import parsedate_to_datetime
 
 from .. import __version__, config
 
@@ -76,7 +78,29 @@ def _read_json(path: Path):
 def _ttl(cache_control: str | None, default: int) -> int:
     m = re.search(r"max-age=(\d+)", cache_control or "")
     ttl = int(m.group(1)) if m else default
-    return max(MIN_INTERVAL, min(ttl, MAX_CACHE))
+    return max(0, min(ttl, MAX_CACHE))
+
+
+def _freshness(headers, now, default_ttl):
+    """HTTP freshness and request throttling are separate clocks."""
+    headers = headers or {}
+    try:
+        raw_age = str(headers.get('Age', '0')).strip()
+        if not raw_age.isascii() or not raw_age.isdigit():
+            raise ValueError('Invalid Age')
+        age = int(raw_age)
+        if headers.get('Date'):
+            date = parsedate_to_datetime(headers['Date'])
+            if date.tzinfo is None or date.timestamp() > now + 60:
+                raise ValueError('Invalid Date')
+            age = max(age, max(0, now - date.timestamp()))
+        validated = now - age
+        if not 0 <= validated <= now:
+            raise ValueError('Invalid age')
+        expires = validated + _ttl(headers.get('Cache-Control'), default_ttl)
+        return {'validated_at': validated, 'expires_at': expires, 'ttl': max(0, expires - now)}
+    except (ValueError, TypeError, OverflowError):
+        return {'validated_at': None, 'expires_at': None, 'ttl': 0}
 
 
 def _get_json(url: str, key: str, default_ttl: int):
@@ -86,7 +110,7 @@ def _get_json(url: str, key: str, default_ttl: int):
     if entry and entry.get("url") != url:
         entry = None  # legacy cache keys may collide; never trust another request
     now = time.time()
-    if entry and now - entry.get("checked_at", 0) < entry.get("ttl", MIN_INTERVAL):
+    if entry and now - entry.get("checked_at", 0) < max(MIN_INTERVAL, entry.get("ttl", MIN_INTERVAL)):
         return entry["body"], True
     headers = {"User-Agent": user_agent(), "Accept": "application/json"}
     if entry and entry.get("etag"):
@@ -96,10 +120,13 @@ def _get_json(url: str, key: str, default_ttl: int):
         with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
             body = json.loads(resp.read().decode("utf-8"))
             etag = resp.headers.get("ETag")
-            ttl = _ttl(resp.headers.get("Cache-Control"), default_ttl)
+            freshness = _freshness(resp.headers, now, default_ttl)
     except urllib.error.HTTPError as e:
         if e.code == 304 and entry:
             entry["checked_at"] = now
+            entry.update(_freshness(e.headers, now, entry.get('cache_lifetime', default_ttl)))
+            if e.headers and e.headers.get('Cache-Control'):
+                entry['cache_lifetime'] = _ttl(e.headers.get('Cache-Control'), default_ttl)
             _write_json(path, entry)
             return entry["body"], True
         raise NinjaError(f"poe.ninja returned HTTP {e.code} for {url}") from None
@@ -110,7 +137,9 @@ def _get_json(url: str, key: str, default_ttl: int):
         raise NinjaError(f"poe.ninja sent invalid JSON for {url}") from None
     finally:
         time.sleep(REQUEST_GAP)
-    _write_json(path, {"url": url, "etag": etag, "checked_at": now, "ttl": ttl, "body": body})
+    _write_json(path, {"url": url, "etag": etag, "checked_at": now,
+                       "received_at": now, "cache_lifetime": _ttl(resp.headers.get('Cache-Control'), default_ttl),
+                       **freshness, "body": body})
     return body, False
 
 
@@ -168,13 +197,17 @@ def update(league: str | None = None, path: Path | None = None) -> dict:
             return load_status(path)
         attempt["requested_league"] = lg
         attempt["selection_verified"] = True
-        prices, cats = {}, {}
+        prices, cats, entries = {}, {}, []
         for t in CATEGORIES:
             url = f"{API}/exchange/current/overview?league={quote(lg)}&type={quote(t)}"
             try:
-                body, cached = _get_json(url, f"{lg}_{t}_{hashlib.sha256(url.encode()).hexdigest()[:16]}", MIN_INTERVAL)
+                key = f"{lg}_{t}_{hashlib.sha256(url.encode()).hexdigest()[:16]}"
+                body, cached = _get_json(url, key, MIN_INTERVAL)
                 p = parse_overview(body)
                 prices.update(p)
+                entry = _read_json(config.NINJA_CACHE_DIR / (re.sub(r"[^A-Za-z0-9_.-]", "_", key) + ".json")) or {}
+                if p:
+                    entries.append(entry)
                 cats[t] = {"ok": True, "count": len(p), "cached": cached}
             except NinjaError as e:
                 cats[t] = {"ok": False, "error": str(e)}
@@ -182,7 +215,14 @@ def update(league: str | None = None, path: Path | None = None) -> dict:
         attempt["ok"] = bool(prices)
         attempt["error"] = "; ".join(f"{t}: {cats[t]['error']}" for t in failed) or None
         if prices:
-            snap = {"_meta": {"source": API, "league": lg, "fetched_at": _now_iso(), "categories": cats,
+            def oldest(field):
+                values = [e.get(field) for e in entries]
+                return min(values) if values and all(type(v) in (int, float) and math.isfinite(v) and v >= 0 for v in values) else None
+            received, validated = oldest('received_at'), oldest('validated_at')
+            snap = {"_meta": {"source": API, "league": lg,
+                              "fetched_at": _now_iso(received) if received is not None else None,
+                              "validated_at": _now_iso(validated) if validated is not None else None,
+                              "expires_at": oldest('expires_at'), "categories": cats,
                               "last_attempt": attempt}, "prices": prices}
         else:
             snap["_meta"] = {**meta, "last_attempt": attempt}
@@ -215,11 +255,17 @@ def load_status(path: Path | None = None, league: str | None = None) -> dict:
                 "message_params": {"actual": meta.get("league"), "requested": requested}}
     fetched = meta.get("fetched_at")
     try:
-        age = time.time() - calendar.timegm(time.strptime(fetched, "%Y-%m-%dT%H:%M:%SZ"))
+        age = time.time() - calendar.timegm(time.strptime(meta.get('validated_at', fetched), "%Y-%m-%dT%H:%M:%SZ"))
     except (TypeError, ValueError):
         age = float("inf")
     attempt = meta.get("last_attempt") or {}
-    base = {"league": meta.get("league"), "fetched_at": fetched, "categories": meta.get("categories", {})}
+    base = {"league": meta.get("league"), "fetched_at": fetched, "categories": meta.get("categories", {}),
+            **{k: meta[k] for k in ('validated_at', 'expires_at') if k in meta}}
+    expiry = meta.get('expires_at')
+    if (not math.isfinite(age) or age < 0 or 'expires_at' in meta and
+            (type(expiry) not in (int, float) or not math.isfinite(expiry))):
+        return {**base, 'state': 'unavailable', 'prices': {}, 'message_key': 'm.price.freshness_unknown',
+                'message_params': {}, 'message': 'Quote freshness could not be verified.'}
     if age > SNAPSHOT_MAX_AGE:
         return {**base, "state": "unavailable", "prices": {},
                 "message": f"Live prices unavailable (last snapshot {fetched} is older than 24 h"
@@ -233,6 +279,9 @@ def load_status(path: Path | None = None, league: str | None = None) -> dict:
                 "message_key": "m.price.unreachable",
                 "message_params": {"at": attempt.get("at"), "error": attempt.get("error"), "fetched": fetched,
                                    "league": meta.get("league")}}
+    if expiry is not None and time.time() >= expiry:
+        return {**base, 'state': 'stale', 'prices': snap['prices'], 'message_key': 'm.price.expired',
+                'message_params': {}, 'message': 'Source freshness expired; saved quotes are estimates.'}
     msg = None
     if attempt.get("error"):
         msg = (f"Some poe.ninja categories failed ({attempt['error']}); those items use "

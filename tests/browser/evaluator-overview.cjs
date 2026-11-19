@@ -24,7 +24,7 @@ for (const language of ['en', 'ru', 'de']) {
   assert(!/<details[^>]*\sopen[\s>]/.test(html));
   assert(html.includes('Life &lt;script&gt;unsafe&lt;/script&gt;'));
   const metadata = marketMeta({league:'Covens',passes:[{}],economy:{fetched_at:'2001-01-01T00:00:00Z'}});
-  assert(metadata.includes(L.strings['eval.market.unknownAge']));
+  assert(metadata.includes(L.strings['eval.indexed.unknown']));
   assert(!metadata.includes('2001'));
   state.result = {kind:'unique',league:'Covens',item:{name:'Unique',type:'Ring'},notes:[{text:L.strings['m.eval.unique_scope'],level:'info'}]};
   renderResult();

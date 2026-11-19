@@ -86,7 +86,7 @@ function listingsHtml(r) {
     return `<details class="card detail market-listings"><summary>${tt("eval.listings")} <span class="muted">(${r.listings.length})</span></summary><div class="table-wrap"><table class="listings">
       <thead><tr><th>#</th><th>${tt("eval.col.price")}</th><th>${tt("eval.col.chaos")}</th><th>${tt("eval.col.seller")}</th>
         <th>${tt("eval.col.ilvl")}</th><th>${tt("eval.col.mods")}</th></tr></thead><tbody>
-      ${r.listings.map((l, i) => `<tr><td>${i + 1}</td><td>${moneyHtml(l.price, l.chaos, r, l.conversion_estimated)}</td>
+      ${r.listings.map((l, i) => `<tr><td>${i + 1}</td><td>${moneyHtml(l.price, l.chaos, r, l.conversion_estimated)}<div class="hint">${indexedHtml(l.indexed)}</div></td>
         <td>${esc(fmtC(l.chaos))}</td><td><span class="badge ${l.online ? "online" : "offline"}">${tt(l.online ? "eval.online" : "eval.offline")}</span></td>
         <td>${l.ilvl ? esc(l.ilvl) : ""}</td><td class="mods">${l.mods.map(esc).join("<br>")}</td></tr>`).join("")}
       </tbody></table></div></details>`;
@@ -201,17 +201,42 @@ function noticesHtml(notes) {
   return `<aside class="assessment-warnings"><b>${tt("eval.market.caution")}</b><ul>${items}</ul></aside>`;
 }
 
+function indexedDate(value) {
+  if (typeof value !== "string") return null;
+  const m = value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/);
+  if (!m) return null;
+  const [, y, month, day, hour, minute, second] = m.map(Number);
+  const timestamp = Date.parse(value);
+  if (month < 1 || month > 12 || day < 1 || day > new Date(Date.UTC(y, month, 0)).getUTCDate() ||
+      hour > 23 || minute > 59 || second > 59 || !Number.isFinite(timestamp) || timestamp > Date.now() + 60000) return null;
+  return new Date(timestamp);
+}
+
+function indexedHtml(value, label = "eval.indexed.at") {
+  const date = indexedDate(value);
+  if (!date) return tt("eval.indexed.unknown");
+  return `${tt(label)} <time datetime="${esc(value)}" title="${esc(value)}">${esc(new Intl.DateTimeFormat(L.code,
+    {year:"numeric", month:"short", day:"numeric", hour:"2-digit", minute:"2-digit", timeZoneName:"short"}).format(date))}</time>`;
+}
+
 function marketMeta(r) {
   const quote = r.quote;
   const searched = (r.passes || []).length || (r.listings || []).length || r.search_url;
-  let freshness = r.cached ? tt("eval.cached") : tt("eval.market.unknownAge");
+  const listings = r.listings || [];
+  const dates = listings.map(l => indexedDate(l.indexed)).filter(Boolean);
+  let freshness = quote ? tt("eval.freshness.unknown") : tt("eval.indexed.unknown");
+  if (!quote && dates.length) {
+    freshness = indexedHtml(new Date(Math.min(...dates.map(d => d.getTime()))).toISOString(), "eval.indexed.oldest");
+    if (dates.length !== listings.length) freshness += ` · ${tt("eval.indexed.someUnknown")}`;
+  }
   if (quote && Number.isFinite(Date.parse(quote.fetched_at))) {
     const date = new Date(quote.fetched_at);
     freshness = `<time datetime="${esc(quote.fetched_at)}" title="${esc(quote.fetched_at)}">${esc(new Intl.DateTimeFormat(L.code,
       {month:"short", day:"numeric", hour:"2-digit", minute:"2-digit", timeZoneName:"short"}).format(date))}</time>`;
   }
   return `<div class="market-meta"><span class="badge">${quote ? "poe.ninja" : searched ? tt("eval.market.trade") : tt("eval.market.noSource")}</span>
-    <span>${tt("eval.league", {league:esc(r.league || "—")})}</span>${quote || searched ? `<span>${freshness}</span>` : ""}</div>`;
+    <span>${tt("eval.league", {league:esc(r.league || "—")})}</span>${quote || searched ? `<span>${freshness}</span>` : ""}
+    ${r.cached ? `<span>${tt("eval.cached")}</span>` : ""}${!quote && listings.length ? `<span>${tt("eval.indexed.note")}</span>` : ""}</div>`;
 }
 
 function filtersHtml(r) {

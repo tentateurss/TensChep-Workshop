@@ -1195,5 +1195,13 @@
   "eval.market.noSource": "No confirmed price",
   "eval.market.caution": "About this estimate",
   "eval.market.requestError": "Could not load a price. Check the connection and try evaluating again.",
-  "eval.market.technical": "Technical details"
+  "eval.market.technical": "Technical details",
+  "m.price.freshness_unknown": "The age of these quotes could not be verified. Estimates are used instead.",
+  "m.price.expired": "The source freshness period has expired. Saved quotes are approximate.",
+  "eval.indexed.at": "Indexed:",
+  "eval.indexed.oldest": "Earliest known index among shown offers:",
+  "eval.indexed.unknown": "Indexing time unknown",
+  "eval.indexed.someUnknown": "Some indexing times are unknown",
+  "eval.indexed.note": "Indexing time is not the last price update and does not confirm that an offer is current.",
+  "eval.freshness.unknown": "Quote acquisition time unknown"
 }

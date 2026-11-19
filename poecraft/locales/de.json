@@ -1195,5 +1195,13 @@
   "eval.market.noSource": "Kein bestätigter Preis",
   "eval.market.caution": "Zu dieser Schätzung",
   "eval.market.requestError": "Preis konnte nicht geladen werden. Prüfen Sie die Verbindung und versuchen Sie es erneut.",
-  "eval.market.technical": "Technische Details"
+  "eval.market.technical": "Technische Details",
+  "m.price.freshness_unknown": "Das Alter der Kurse konnte nicht bestätigt werden. Stattdessen werden Schätzwerte verwendet.",
+  "m.price.expired": "Die Gültigkeitsdauer der Quelle ist abgelaufen. Gespeicherte Kurse sind nur Richtwerte.",
+  "eval.indexed.at": "Indexiert:",
+  "eval.indexed.oldest": "Früheste bekannte Indexierung der angezeigten Angebote:",
+  "eval.indexed.unknown": "Indexierungszeit unbekannt",
+  "eval.indexed.someUnknown": "Einige Indexierungszeiten sind unbekannt",
+  "eval.indexed.note": "Die Indexierung ist keine letzte Preisänderung und bestätigt nicht die Aktualität des Angebots.",
+  "eval.freshness.unknown": "Abrufzeit des Kurses unbekannt"
 }

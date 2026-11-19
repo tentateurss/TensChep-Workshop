@@ -316,7 +316,7 @@ def _display_rate(prices, league):
     from ..data import ninja
     status = prices.live_status
     try:
-        fetched = calendar.timegm(time.strptime(status.get('fetched_at'), '%Y-%m-%dT%H:%M:%SZ'))
+        fetched = calendar.timegm(time.strptime(status.get('validated_at', status.get('fetched_at')), '%Y-%m-%dT%H:%M:%SZ'))
     except (TypeError, ValueError):
         return None
     value = prices.live.get('Divine Orb')
@@ -325,7 +325,7 @@ def _display_rate(prices, league):
             or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0):
         return None
     return {'chaos_per_divine': value, 'league': status['league'], 'source': 'poe.ninja',
-            'fetched_at': status['fetched_at'], 'expires_at': fetched + ninja.MAX_CACHE}
+            'fetched_at': status['fetched_at'], 'expires_at': min(fetched + ninja.MAX_CACHE, status.get('expires_at', fetched + ninja.MAX_CACHE))}
 
 
 def _quick_quote(text: str, league: str | None) -> dict | None:
@@ -359,7 +359,7 @@ def _quick_quote(text: str, league: str | None) -> dict | None:
     p = Prices(league=selection['league'])
     status = p.live_status
     try:
-        age = time.time() - calendar.timegm(time.strptime(status.get('fetched_at'), '%Y-%m-%dT%H:%M:%SZ'))
+        age = time.time() - calendar.timegm(time.strptime(status.get('validated_at', status.get('fetched_at')), '%Y-%m-%dT%H:%M:%SZ'))
     except (TypeError, ValueError):
         return None
     if (status.get('state') != 'live' or not status.get('league') or not 0 <= age <= ninja.MAX_CACHE
