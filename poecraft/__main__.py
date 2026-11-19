@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import redirect_stdout
 import json
 import re
 import sys
@@ -641,6 +642,16 @@ def main(argv=None) -> int:
                    help="recovery mode: also simulate the fresh 'start over' plan (slower; its cost is calculated either way)")
     args = ap.parse_args(argv)
 
+    output = sys.stdout
+    if args.cmd == "plan" and args.json:
+        # Keep diagnostics out of the machine-readable output, including imported-item notes.
+        with redirect_stdout(sys.stderr):
+            return _run(args, output)
+    return _run(args, output)
+
+
+def _run(args, output) -> int:
+
     if args.cmd == "update" and not config.os.environ.get("POECRAFT_STAGED_UPDATE"):
         from .data.update import update
         update(args.url, args.expect_version, args.dry_run)
@@ -800,7 +811,7 @@ def main(argv=None) -> int:
             base.id, args.ilvl, args.influence, specs, args.have, full_sims=args.full_sims, lang=None)
         result = _present(raw)
         if args.json:
-            json.dump(result, sys.stdout, indent=2, default=str, ensure_ascii=False)
+            json.dump(result, output, indent=2, default=str, ensure_ascii=True)
         else:
             _print_recovery(result)
         return 0
@@ -809,7 +820,7 @@ def main(argv=None) -> int:
                                                                          objective=args.objective, lang=None)
     result = _present(raw)
     if args.json:
-        json.dump(result, sys.stdout, indent=2, default=str, ensure_ascii=False)
+        json.dump(result, output, indent=2, default=str, ensure_ascii=True)
     else:
         _print_plan(result, show_all=args.show_all_plans)
     if args.trade:
