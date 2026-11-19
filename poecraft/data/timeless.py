@@ -167,6 +167,7 @@ def lua_table(text: str):
                     obj[k] = value()
                 else:
                     arr.append(value())
+                    obj[len(arr)] = arr[-1]
                 if toks[pos] == ",":
                     pos += 1
             pos += 1

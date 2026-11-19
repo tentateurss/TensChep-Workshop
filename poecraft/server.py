@@ -475,7 +475,7 @@ class Handler(BaseHTTPRequestHandler):
             size = -1
         if size < 0 or size > config.MAX_BODY:
             return self._json({"error": f"request body larger than {config.MAX_BODY} bytes"}, 413)
-        if urlparse(self.path).path == "/api/build/import":
+        if urlparse(self.path).path in ("/api/build/import", "/api/build/tree"):
             from . import buildassistant
             expected = f"127.0.0.1:{self.server.server_address[1]}"
             if (self.client_address[0] != "127.0.0.1" or self.headers.get("Host") != expected or
@@ -485,6 +485,12 @@ class Handler(BaseHTTPRequestHandler):
                 body = json.loads(self.rfile.read(size))
                 if not isinstance(body, dict):
                     raise ValueError('Expected an object')
+                if urlparse(self.path).path == "/api/build/tree":
+                    from . import buildtree
+                    try:
+                        return self._json(buildtree.load_tree(body.get('version')))
+                    except buildtree.TreeDataError as error:
+                        return self._json({'error': 'build.map.error.' + str(error)}, 503)
                 return self._json(buildassistant.import_build(body.get("source")))
             except buildassistant.BuildImportError as error:
                 self.log_message("PoB import rejected: %r", error.__cause__ or error)

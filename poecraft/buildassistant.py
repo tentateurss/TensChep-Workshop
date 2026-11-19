@@ -186,7 +186,7 @@ def import_build(source):
     tree = root.find('Tree')
     for index, spec in enumerate(root.findall('Tree/Spec'), 1):
         version = spec.get('treeVersion')
-        if version and not re.fullmatch(r'[23][_.]\d+(?:[_.]\d+)*', version):
+        if version and not re.fullmatch(r'[23][_.]\d+(?:[_.]\d+)*(?:_ruthless)?(?:_alternate)?', version):
             raise BuildImportError('version')
         nodes = spec.get('nodes')
         nodes = [_integer(n.strip()) for n in nodes.split(',')] if nodes else ([] if nodes == '' else None)
@@ -195,6 +195,8 @@ def import_build(source):
         trees.append({'id': str(index), 'title': spec.get('title'), 'version': version,
                       'class_id': _integer(spec.get('classId')), 'ascendancy_id': _integer(spec.get('ascendClassId')),
                       'nodes': nodes, 'mastery_effects': spec.get('masteryEffects'),
+                      'overrides': [dict(n.attrib) for n in spec.findall('Overrides/Override')],
+                      'edited_nodes': [dict(n.attrib) for n in spec.findall('EditedNodes/*')],
                       'url': _tree_url(spec.findtext('URL')),
                       'sockets': [dict(s.attrib) for s in spec.findall('Sockets/Socket')],
                       'active': tree.get('activeSpec') == str(index)})

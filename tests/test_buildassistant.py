@@ -175,8 +175,8 @@ class BuildHTTP(unittest.TestCase):
     def tearDownClass(cls):
         cls.server.shutdown();cls.server.server_close();cls.worker.join()
 
-    def post(self,body,origin=None):
-        req=urllib.request.Request(self.url+'/api/build/import',json.dumps(body).encode(),
+    def post(self,body,origin=None,path='/api/build/import'):
+        req=urllib.request.Request(self.url+path,json.dumps(body).encode(),
                                    {'Content-Type':'application/json','Origin':origin or self.url,'X-Workshop-Build':'1'})
         try:
             with urllib.request.urlopen(req) as response:return response.status,json.load(response)
@@ -202,3 +202,18 @@ class BuildHTTP(unittest.TestCase):
         strings={lang:json.loads((config.PACKAGE_DIR/'locales'/f'{lang}.json').read_text(encoding='utf-8')) for lang in ['en','ru','de']}
         keys={k for k in strings['en'] if k.startswith(('build.','hub.tool.build.'))}
         for lang,data in strings.items():self.assertTrue(keys<=data.keys(),lang)
+
+    def test_tree_api_checks_origin_before_loading(self):
+        from poecraft import buildtree
+        with patch.object(buildtree,'load_tree',return_value={'version':'3_29','nodes':{}}) as load:
+            self.assertEqual(self.post({'version':'3_29'},'https://evil.example','/api/build/tree')[0],403)
+            load.assert_not_called()
+            status,body=self.post({'version':'3_29'},path='/api/build/tree')
+            self.assertEqual((status,body['version']),(200,'3_29'))
+            load.assert_called_once_with('3_29')
+
+    def test_tree_network_error_is_localizable(self):
+        from poecraft import buildtree
+        with patch.object(buildtree,'load_tree',side_effect=buildtree.TreeDataError('network')):
+            self.assertEqual(self.post({'version':'3_29'},path='/api/build/tree'),
+                             (503,{'error':'build.map.error.network'}))

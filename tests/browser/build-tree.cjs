@@ -1,0 +1,11 @@
+const fs=require('fs'),vm=require('vm'),path=require('path'),assert=require('assert');
+const {delta,masteries}=vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../../poecraft/web/build-tree.js'),'utf8')+'\nBuildTree');
+const a={version:'3_30',nodes:[1,2,4],mastery_effects:'{4,10}'},b={version:'3_30',nodes:[2,3,4,70000],mastery_effects:'{4,11}'};
+assert.equal(JSON.stringify(delta(a,b)),JSON.stringify({added:['3','70000'],removed:['1'],masteries:['4']}));
+assert.equal(delta(a,{...b,version:'3_29'}),null);
+assert.equal(delta(a,{...b,nodes:null}),null);
+assert.equal(delta({...a,version:null},{...b,version:null}),null);
+assert.equal(delta(a,{...b,version:'3.30'}).added.length,2);
+assert.equal(delta(a,{...b,mastery_effects:null}).masteries.length,0);
+assert.equal(JSON.stringify(masteries(a)),JSON.stringify({'4':10}));
+console.log('PASS author-set differences, mastery changes and version isolation');

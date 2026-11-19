@@ -30,4 +30,6 @@
 
 ## Build Assistant
 
+Карта пассивов: `poecraft/buildtree.py` загружает точную версию PoB в отдельный кеш `build_trees/`, сохраняя ревизию, SHA-256 и NOTICE. `web/build-tree.js` отображает реальные координаты, связи и выбранные мастерства; сравнение наборов не задаёт порядок прокачки. Динамические cluster-узлы не генерируются. `POST /api/build/tree` использует ту же защиту Origin/Host, что импорт. Проверки: `test_buildtree.py`, `tests/browser/build-tree.cjs`.
+
 `poecraft/buildassistant.py` — изолированный импорт XML, Base64/zlib и HTTPS pobb.in. `_loadouts` проверяет авторские связи по правилам PoB и оставляет неоднозначные наборы независимыми. Импорт не использует SQLite, Planner, Evaluator или Timeless. `server.py` связывает локальный `POST /api/build/import` и страницу `/build` с `web/build.{html,js,css}`. UI сравнивает версию выбранного дерева с метаданными активной базы из существующего `/api/meta`; отсутствие версии не означает совместимость. Вход в инструмент — `web/hub.js`; строки — `locales/{en,ru,de}.json`. Проверки: `tests/test_buildassistant.py`, `tests/test_build_loadouts.py`, реальные XML в `tests/fixtures/pob/`, `tests/browser/buildassistant.cjs` и `build-stages.cjs`. Пользовательское описание: [Build Assistant](BUILD_ASSISTANT.md).
