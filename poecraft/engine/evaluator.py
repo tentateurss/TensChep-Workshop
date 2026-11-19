@@ -22,6 +22,7 @@ import math
 import re
 import threading
 import time
+from concurrent.futures import Future
 from functools import lru_cache
 
 from .. import config, i18n
@@ -52,6 +53,7 @@ RARITY_WORDS = {"currency": ("currency", "валюта", "währung"), "divinatio
                                                                               "weissagungskarte"),
                 "gem": ("gem", "камень", "gemme")}
 _CACHE: dict = {}
+_INFLIGHT: dict = {}
 CACHE_MAX = 500               # cached evaluations (5 min each)
 _LOCK = threading.Lock()
 
@@ -257,6 +259,7 @@ def _plan_drops(droppable: list[dict], passes_left: int) -> list[list[dict]]:
 
 
 # ------------------------------------------------------------------ entry
+@trade.measure_evaluation
 def evaluate(text: str, league: str | None = None, data=None, socket=None, equivalents=None):
     from .prices import PRICE_LEAGUE, Prices
     lg = trade.current_league(_price_league())
@@ -294,20 +297,41 @@ def _evaluate_with_context(text: str, league: str | None = None, data: GameData 
     with _LOCK:
         hit = _CACHE.get(key)
         if hit and hit[0] > time.monotonic():
+            trade.count_request("evaluation.cache_hit")
             out = dict(hit[1], cached=True)
-            return _timeless_extras(out, socket, equivalents, lg)
-    out = _evaluate(text, lg, data)
-    out.pop("_deadline", None)
-    out.pop("_status", None)
-    out["summary"] = _summary(out)
-    with _LOCK:
-        now = time.monotonic()
-        if len(_CACHE) >= CACHE_MAX:              # bounded: expired entries first, then the oldest
-            for k in [k for k, (exp, _) in _CACHE.items() if exp <= now]:
-                del _CACHE[k]
-            while len(_CACHE) >= CACHE_MAX:
-                _CACHE.pop(next(iter(_CACHE)))
-        _CACHE[key] = (now + config.TRADE_CACHE_TTL, out)
+            flight = None
+        else:
+            flight = _INFLIGHT.get(key)
+            owner = flight is None
+            if owner:
+                flight = _INFLIGHT[key] = Future()
+    if flight is not None:
+        if not owner:
+            trade.count_request("evaluation.shared_wait")
+            # A disconnected/timed-out waiter must not cancel the shared request.
+            out = dict(flight.result(timeout=config.EVAL_WAIT_BUDGET + trade.TIMEOUT))
+        else:
+            try:
+                trade.count_request("evaluation.cache_miss")
+                out = _evaluate(text, lg, data)
+                out.pop("_deadline", None)
+                out.pop("_status", None)
+                out["summary"] = _summary(out)
+                with _LOCK:
+                    now = time.monotonic()
+                    if len(_CACHE) >= CACHE_MAX:  # expired entries first, then the oldest
+                        for k in [k for k, (exp, _) in _CACHE.items() if exp <= now]:
+                            del _CACHE[k]
+                        while len(_CACHE) >= CACHE_MAX:
+                            _CACHE.pop(next(iter(_CACHE)))
+                    _CACHE[key] = (now + config.TRADE_CACHE_TTL, out)
+                flight.set_result(out)
+            except BaseException as error:
+                flight.set_exception(error)
+                raise
+            finally:
+                with _LOCK:
+                    del _INFLIGHT[key]
     return _timeless_extras(out, socket, equivalents, lg)
 
 
@@ -567,18 +591,24 @@ def _wait(out: dict) -> float:
 
 
 def _search_and_fetch(out: dict, lg: dict, payload: dict) -> int:
-    from .prices import Prices
-    localized = {"language": out["query_language"]} if out.get("query_language", "en") != "en" else {}
-    res = trade.search_ids(lg["league"], _with_status(payload, out.get("_status")), wait=_wait(out), **localized)
-    if res.get("inferred"):
-        out["inferred"] = out.get("inferred", 0) + 1       # answered from an earlier search that found nothing
-    elif res.get("id"):
-        out["search_url"] = trade.search_url(lg["league"], res["id"], **localized)
-    if res["total"]:
-        rows = trade.fetch_listings(res["id"], res["result"][:MAX_LISTINGS], wait=_wait(out))
-        prices = Prices()
-        out["listings"] = _sort([_listing(prices, r) for r in rows])
-    return res["total"]
+    reason = out.get("kind", "type")
+    if reason == "rare":
+        reason = "rare_relaxed" if out.get("passes") else "rare_exact"
+    if payload.get("query", {}).get("status", {}).get("option") == "any":
+        reason = "offline"
+    with trade.request_reason(reason):
+        from .prices import Prices
+        localized = {"language": out["query_language"]} if out.get("query_language", "en") != "en" else {}
+        res = trade.search_ids(lg["league"], _with_status(payload, out.get("_status")), wait=_wait(out), **localized)
+        if res.get("inferred"):
+            out["inferred"] = out.get("inferred", 0) + 1       # answered from an earlier search that found nothing
+        elif res.get("id"):
+            out["search_url"] = trade.search_url(lg["league"], res["id"], **localized)
+        if res["total"]:
+            rows = trade.fetch_listings(res["id"], res["result"][:MAX_LISTINGS], wait=_wait(out))
+            prices = Prices()
+            out["listings"] = _sort([_listing(prices, r) for r in rows])
+        return res["total"]
 
 
 def _with_offline_fallback(out: dict, lg: dict, make, note_pass: dict | None = None) -> None:

@@ -17,6 +17,9 @@ strings; the search endpoint is rate-limited per IP, e.g. 5 requests per 10 s - 
 from __future__ import annotations
 
 import collections
+from contextlib import contextmanager
+from contextvars import ContextVar
+from functools import wraps
 import json
 import re
 import threading
@@ -29,6 +32,41 @@ from pathlib import Path
 from ..messages import M
 from .. import config
 from .ninja import user_agent
+
+_metrics = ContextVar('trade_metrics', default=None)
+_reason = ContextVar('trade_reason', default='evaluation')
+
+
+def count_request(event):
+    """Only internal fixed labels; never pass URLs, query IDs or item text."""
+    counter = _metrics.get()
+    if counter is not None:
+        counter[event] += 1
+
+
+@contextmanager
+def request_reason(reason):
+    allowed = {'unique', 'currency', 'type', 'rare_exact', 'rare_relaxed', 'offline', 'timeless'}
+    token = _reason.set(reason if reason in allowed else 'evaluation')
+    try:
+        yield
+    finally:
+        _reason.reset(token)
+
+
+def measure_evaluation(func):
+    @wraps(func)
+    def measured(*args, **kwargs):
+        counter = collections.Counter()
+        token = _metrics.set(counter)
+        try:
+            result = dict(func(*args, **kwargs))
+            result['trade_metrics'] = dict(counter)
+            return result
+        finally:
+            _metrics.reset(token)
+    return measured
+
 
 SITE = "https://www.pathofexile.com"
 STATS_TTL = 7 * 86400
@@ -57,6 +95,9 @@ def _site(language: str = "en") -> str:
 
 def _get(path: str, name: str, ttl: int, language: str = "en"):
     """GET a trade-site data file, cached on disk for `ttl` seconds; a stale cache is used when the site is down."""
+    label = 'reference.' + {
+        '/api/trade/data/leagues': 'leagues', '/api/trade/data/stats': 'stats',
+    }.get(path, 'other')
     site = _site(language)
     if language != "en":
         name += "_" + language
@@ -66,20 +107,26 @@ def _get(path: str, name: str, ttl: int, language: str = "en"):
     except (OSError, ValueError):
         entry = None
     if entry and time.time() - entry.get("fetched", 0) < ttl:
+        count_request(label + ".cache_hit")
         return entry["body"]
     failed = _get_failed.get(name)
     if failed and time.monotonic() - failed[0] < GET_RETRY_AFTER:
         # the site was just unreachable: don't make every request wait for the timeout again
+        count_request(label + ".failure_cache_hit")
         if entry:
+            count_request(label + ".stale_hit")
             return entry["body"]
         raise TradeError(M("m.tradeerr.unreachable", reason=failed[1]))
     req = urllib.request.Request(site + path, headers={"User-Agent": user_agent(), "Accept": "application/json"})
     try:
+        count_request(label + ".sent")
         with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
             body = json.loads(r.read().decode("utf-8"))
     except (urllib.error.URLError, TimeoutError, OSError, ValueError) as e:
+        count_request(label + ".error")
         _get_failed[name] = (time.monotonic(), str(getattr(e, "reason", e)))
         if entry:
+            count_request(label + ".stale_hit")
             return entry["body"]
         raise TradeError(M("m.tradeerr.unreachable", reason=str(getattr(e, "reason", e)))) from None
     _get_failed.pop(name, None)
@@ -328,13 +375,21 @@ def _note_state(kind: str, headers) -> None:
 
 def _ggg(kind: str, req: urllib.request.Request, wait: float):
     global _blocked_until
-    _slot(kind, wait)
     try:
+        _slot(kind, wait)
+    except TradeError:
+        count_request(kind + ".slot_rejected")
+        raise
+    try:
+        count_request(kind + ".sent")
+        count_request(kind + ".reason." + _reason.get())
         with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
             _note_state(kind, r.headers)
             return json.loads(r.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
+        count_request(kind + ".http_error")
         if e.code == 429:
+            count_request(kind + ".http_429")
             try:
                 retry = float(e.headers.get("Retry-After") or 60)
             except ValueError:
@@ -402,9 +457,12 @@ def search_ids(league: str, payload: dict, wait: float = 20.0, language: str = "
     with _lock:
         hit = _listing_cache.get(key)
         if hit and hit[0] > time.monotonic():
+            count_request("search.cache_hit")
             return hit[1]
         if _known_zero(context, cons):
+            count_request("search.inferred_zero")
             return {"id": None, "total": 0, "result": [], "inferred": True}
+    count_request("search.cache_miss")
     req = urllib.request.Request(f"{site}/api/trade/search/{urllib.parse.quote(league)}",
                                  json.dumps(payload).encode("utf-8"),
                                  {"User-Agent": user_agent(), "Content-Type": "application/json",
@@ -429,8 +487,10 @@ def fetch_listings(query_id: str, ids: list[str], wait: float = 20.0) -> list[di
         with _lock:
             hit = _listing_cache.get(key)
         if hit and hit[0] > time.monotonic():
+            count_request("fetch.cache_hit")
             out += hit[1]
             continue
+        count_request("fetch.cache_miss")
         req = urllib.request.Request(f"{SITE}/api/trade/fetch/{','.join(chunk)}?query={urllib.parse.quote(query_id)}",
                                      headers={"User-Agent": user_agent(), "Accept": "application/json"})
         rows = [r for r in (_ggg("fetch", req, wait).get("result") or []) if r]
