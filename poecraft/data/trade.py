@@ -46,7 +46,7 @@ def count_request(event):
 
 @contextmanager
 def request_reason(reason):
-    allowed = {'unique', 'currency', 'type', 'rare_exact', 'rare_relaxed', 'offline', 'timeless'}
+    allowed = {'unique', 'currency', 'type', 'rare_exact', 'rare_relaxed', 'rare_manual', 'offline', 'timeless'}
     token = _reason.set(reason if reason in allowed else 'evaluation')
     try:
         yield

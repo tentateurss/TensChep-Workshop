@@ -93,3 +93,11 @@ ul.tj-smalls { margin: 6px 0; padding-left: 20px; font-size: 13px; }
 .notices li { margin: 3px 0; line-height: 1.45; }
 .copy-mod { font-size: 11px; padding: 1px 6px; margin-left: 4px; }
 .note-error { border-left: 3px solid var(--bad); padding: 4px 10px; font-size: 13px; color: var(--text); background: var(--panel); border-radius: 4px; }
+
+.eval-filters summary { cursor: pointer; color: var(--accent); font-weight: 600; }
+.eval-filter { padding: 10px 0; border-bottom: 1px solid var(--border); display: grid; gap: 5px; min-width: 0; }
+.eval-filter > label { overflow-wrap: anywhere; }
+.eval-filter input[type="checkbox"] { width: auto; }
+.filter-bounds { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.filter-bounds label { display: grid; gap: 4px; min-width: 0; }
+.filter-bounds input { width: 100px; max-width: 100%; }

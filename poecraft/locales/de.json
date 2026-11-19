@@ -1172,5 +1172,22 @@
   "eval.currency.label": "Anzeigewährung",
   "eval.currency.auto": "Automatisch",
   "eval.currency.chaos": "Chaossphäre",
-  "eval.currency.divine": "Göttliche Sphäre"
+  "eval.currency.divine": "Göttliche Sphäre",
+  "eval.filters.title": "Suchfilter",
+  "eval.filters.hint": "Eigenschaften und Bereiche wählen. Änderungen werden erst mit Suchen übernommen. Aktivierte Filter werden im manuellen Modus nicht automatisch gelockert.",
+  "eval.filters.min": "Minimum",
+  "eval.filters.max": "Maximum",
+  "eval.filters.primary": "Bei Modifikatoren mit mehreren Werten gilt der Bereich für den Hauptwert. Andere Bestandteile werden auf Vorhandensein geprüft.",
+  "eval.filters.search": "Mit diesen Filtern suchen",
+  "eval.filters.auto": "Automatische Suche",
+  "eval.filters.dirty": "Änderungen noch nicht übernommen. Der Preis oben gehört zur vorherigen Suche.",
+  "eval.filters.active": "In der Suche enthalten",
+  "eval.filters.autoOff": "Automatisch gelockert: niedrigere Priorität, keine genauen Treffer. Erklärung der Bedeutung weiter unten.",
+  "eval.filters.manualOff": "Durch Ihre Auswahl ausgeschlossen",
+  "eval.filters.unmapped": "Kein vollständiger Trade-Filter gefunden; manuelle Auswahl nicht verfügbar.",
+  "m.eval.filters.invalid": "Diese Filter passen nicht zum Gegenstand. Bewerten Sie ihn erneut und wählen Sie verfügbare Eigenschaften.",
+  "m.eval.filters.range": "Das Minimum darf das Maximum nicht überschreiten, auch bei überlappenden Modifikatoren.",
+  "m.eval.filters.manual": "Angebote entsprechen den gewählten Filtern und können vom eingefügten Gegenstand abweichen. Aktivierte Filter wurden nicht automatisch gelockert.",
+  "eval.reliability.manual": "Vergleich mit manuellen Filtern, kein bestätigter Wert des eingefügten Gegenstands",
+  "eval.match.manual": "Manuelle Filter"
 }

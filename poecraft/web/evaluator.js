@@ -76,7 +76,7 @@ function summaryHtml(r) {
     ${s.reliability_reason ? `<span class="summary-sub match-quality">${tt("eval.reliability." + s.reliability_reason)}</span>` : ""}
     ${s.sample_count ? `<span class="summary-sub">${tt("eval.sampleRange", {lo: esc(fmtC(s.sample_min)), hi: esc(fmtC(s.sample_max)), n: s.sample_count})}</span>` : ""}
     <span class="summary-sub">${tt("eval.asking")}</span>
-    ${r.value_share ? `<span class="summary-sub">${tt("eval.valueTolerance", {p: Math.round(r.value_share * 100)})}</span>` : ""}
+    ${r.value_share && !r.manual_filters ? `<span class="summary-sub">${tt("eval.valueTolerance", {p: Math.round(r.value_share * 100)})}</span>` : ""}
     ${s.match_quality ? `<span class="summary-sub match-quality">${tt("eval.match." + s.match_quality)}</span>` : ""}
     ${s.relaxed ? `<span class="summary-sub relaxed-mods">${tt("eval.relaxedMods", {mods: s.dropped.map(en).join("; ")})}</span>` : ""}
     ${r.kind === "unique" ? `<span class="summary-sub">${tt("m.eval.unique_scope")}</span>` : ""}</div>`;
@@ -202,6 +202,20 @@ function noticesHtml(notes) {
   return `<details class="notices detail"><summary>${tt("eval.notes.summary", {n: notes.length})}</summary><ul>${items}</ul></details>`;
 }
 
+function filtersHtml(r) {
+  if (!r.filters || !r.filters.length) return "";
+  return `<details class="card eval-filters" open><summary>${tt("eval.filters.title")}</summary>
+    <p class="hint">${tt("eval.filters.hint")}</p><form id="manualFilters">
+    ${r.filters.map((f, i) => {
+      const draft = state.filterDraft[i];
+      return `<div class="eval-filter" data-filter="${i}"><label><input type="checkbox" data-field="enabled" ${(f.editable ? draft.enabled : f.enabled) ? "checked" : ""} ${f.editable ? "" : "disabled"}> ${en(f.label)}</label>
+        <span class="hint">${en(f.reason)}</span>${f.numeric ? `<div class="filter-bounds">
+        ${["min", "max"].map(k => `<label>${tt("eval.filters." + k)} <input type="number" step="any" data-field="${k}" value="${esc(draft[k] ?? "")}" ${draft.enabled && f.editable ? "" : "disabled"}></label>`).join("")}</div>` : ""}</div>`;
+    }).join("")}<p class="hint">${tt("eval.filters.primary")}</p><p class="hint" id="filterDirty" aria-live="polite">${state.filtersDirty ? tt("eval.filters.dirty") : ""}</p>
+    <div class="row wrap"><button type="submit" class="primary">${tt("eval.filters.search")}</button>
+      <button type="button" id="automaticFilters">${tt("eval.filters.auto")}</button></div></form></details>`;
+}
+
 async function copyMod(btn) {
   const n = (state.notes || [])[+btn.dataset.copy];
   if (!n || !n.copy) return;
@@ -238,14 +252,15 @@ function renderResult() {
   // real failures stay visible (small); everything else goes into one collapsible notice at the bottom
   const notes = r.notes || (r.warnings || []).map((w) => ({text: w, level: "info", copy: null}));
   for (const n of notes.filter((n) => n.level === "error")) out.push(`<div class="note-error">${en(n.text)}</div>`);
+  out.push(filtersHtml(r));
   out.push(listingsHtml(r));
   if ((r.ranking || []).length) {
     const dropped = new Set(((r.passes || []).slice(-1)[0] || {}).dropped || []);
-    out.push(`<div class="card detail"><h2>${tt("eval.ranking")}</h2><p class="hint">${tt("eval.rankingHint")}</p><p class="hint">${tt("eval.rankHeuristic")}</p>
+    out.push(`<details class="card detail"><summary>${tt("eval.ranking")}</summary><p class="hint">${tt("eval.rankingHint")}</p><p class="hint">${tt("eval.rankHeuristic")}</p>
       <div class="table-wrap"><table class="ranking"><thead><tr><th>${tt("eval.col.property")}</th><th>${tt("eval.col.why")}</th><th></th></tr></thead><tbody>
       ${r.ranking.map((e) => `<tr class="${dropped.has(e.label) ? "dropped" : ""}"><td>${en(e.label)}</td><td class="muted">${en(e.why)}</td>
         <td>${e.core ? `<span class="badge core">${tt("eval.core")}</span>` : dropped.has(e.label) ? `<span class="badge">${tt("eval.droppedBadge")}</span>` : ""}</td></tr>`).join("")}
-    </tbody></table></div></div>`);
+    </tbody></table></div></details>`);
   }
   if ((r.passes || []).length) {
     out.push(`<div class="card detail"><h2>${tt("eval.passes")}</h2><ol class="passes">${r.passes.map((p) =>
@@ -259,7 +274,7 @@ function renderResult() {
   if (r.timeless && r.timeless.sockets) loadTree();
 }
 
-async function evaluate(withSocket = false, equivalents = null, loadListings = false) {
+async function evaluate(withSocket = false, equivalents = null, loadListings = false, manualFilters = undefined) {
   const text = $("#itemText").value.trim();
   if (!text) return;
   const generation = ++evaluationGeneration;
@@ -267,6 +282,7 @@ async function evaluate(withSocket = false, equivalents = null, loadListings = f
   const language = L.code;
   $("#evalBtn").disabled = true;
   const same = text === state.text;
+  const manual = manualFilters === undefined ? same && league === state.appliedLeague ? state.appliedFilters : null : manualFilters;
   const prev = state.result && state.result.timeless;
   // a re-evaluation of the same jewel (language switch, Evaluate again) keeps the calculation and the seed search
   const eq = equivalents || (same && prev && prev.equivalents ? (state.eqNodes || []) : null);
@@ -274,11 +290,15 @@ async function evaluate(withSocket = false, equivalents = null, loadListings = f
   try {
     const r = await fetch("/api/evaluate", {method: "POST", headers: {"Content-Type": "application/json", "X-Poecraft-Lang": L.code},
       body: JSON.stringify({text, lang: language, league: league || null, equivalents: eq, load_listings: loadListings,
+        ...(manual != null ? {manual_filters: manual} : {}),
         socket: (withSocket === true || (prev && prev.calc)) && same ? state.socket : null})});
     const j = await r.json();
     if (generation !== evaluationGeneration || league !== $("#league").value || language !== L.code || text !== $("#itemText").value.trim()) return;
     if (!r.ok) throw new Error(j.error || r.statusText);
     state.result = j; state.text = text;
+    state.appliedFilters = manual; state.appliedLeague = league;
+    state.filterDraft = (j.filters || []).map(f => ({id:f.id, enabled:f.enabled && f.editable, min:f.min, max:f.max}));
+    state.filtersDirty = false;
     renderResult();
   } catch (e) {
     if (generation !== evaluationGeneration) return;
@@ -351,11 +371,32 @@ async function popOut() {
 }
 
 // the calculator lives in the result area, which is re-rendered: listen on the container
+$("#result").addEventListener("input", e => {
+  const row = e.target.closest("[data-filter]");
+  if (!row) return;
+  const draft = state.filterDraft[+row.dataset.filter];
+  const field = e.target.dataset.field;
+  if (!field) return;
+  draft[field] = field === "enabled" ? e.target.checked : e.target.value === "" ? null : Number(e.target.value);
+  state.filtersDirty = true;
+  if (field === "enabled") row.querySelectorAll('input[type="number"]').forEach(el => el.disabled = !draft.enabled);
+  $("#filterDirty").textContent = tx("eval.filters.dirty");
+});
+$("#result").addEventListener("submit", e => {
+  if (e.target.id !== "manualFilters") return;
+  e.preventDefault();
+  if (state.filterDraft.some(f => f.min != null && f.max != null && f.min > f.max)) {
+    $("#filterDirty").textContent = tx("m.eval.filters.range");
+    return;
+  }
+  if (e.target.reportValidity()) evaluate(false, null, false, state.filterDraft.map(f => ({...f})));
+});
 $("#result").addEventListener("change", (e) => {
   if (e.target.id === "displayCurrency") { state.currency = e.target.value; renderResult(); }
   if (e.target.id === "tjSocket") pickSocket(e.target.value);
 });
 $("#result").addEventListener("click", (e) => {
+  if (e.target.id === "automaticFilters") { evaluate(false, null, false, null); return; }
   if (e.target.id === "loadListings") { evaluate(false, null, true); return; }
   const s = e.target.closest("[data-socket]");
   if (s) { pickSocket(s.dataset.socket); return; }

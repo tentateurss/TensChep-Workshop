@@ -1172,5 +1172,22 @@
   "eval.currency.label": "Display currency",
   "eval.currency.auto": "Automatic",
   "eval.currency.chaos": "Chaos Orb",
-  "eval.currency.divine": "Divine Orb"
+  "eval.currency.divine": "Divine Orb",
+  "eval.filters.title": "Search filters",
+  "eval.filters.hint": "Choose properties and ranges. Changes remain a draft until you press Search. Enabled filters are not automatically relaxed in manual mode.",
+  "eval.filters.min": "Minimum",
+  "eval.filters.max": "Maximum",
+  "eval.filters.primary": "For a modifier with multiple values, the range applies to its primary value. Other components are checked for presence.",
+  "eval.filters.search": "Search with these filters",
+  "eval.filters.auto": "Automatic search",
+  "eval.filters.dirty": "Changes have not been applied. The price above belongs to the previous search.",
+  "eval.filters.active": "Included in the search",
+  "eval.filters.autoOff": "Automatically relaxed: lower priority and no exact matches found. See the importance explanation below.",
+  "eval.filters.manualOff": "Excluded by your selection",
+  "eval.filters.unmapped": "Cannot be fully matched to a Trade filter; manual selection is unavailable.",
+  "m.eval.filters.invalid": "These filters cannot be applied to this item. Evaluate the item again and select its available filters.",
+  "m.eval.filters.range": "The minimum cannot exceed the maximum, including overlapping modifiers.",
+  "m.eval.filters.manual": "Results match your chosen filters, which may differ from the pasted item. Enabled filters were not automatically relaxed.",
+  "eval.reliability.manual": "Comparison for manually selected filters; not a confirmed value of the pasted item",
+  "eval.match.manual": "Manual filters"
 }

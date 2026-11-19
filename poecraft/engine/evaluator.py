@@ -23,6 +23,7 @@ import re
 import threading
 import time
 import calendar
+import hashlib
 from concurrent.futures import Future
 from functools import lru_cache
 
@@ -216,14 +217,19 @@ def _label(e: dict, lines_by_key: dict):
 # ------------------------------------------------------------------ queries
 def _query(base_name: str, kept: list[dict], fams, eld_fams, index, status: str, unmapped: list) -> dict:
     filters, misc = [], {}
+    ranges = {}
     for e in kept:
         if e["type"] == "mod":
             t = dict(e["target"])
             v = t.get("value")
             t["min"] = None if v is None else (math.floor(v * VALUE_SHARE) if v >= 10 else round(v * VALUE_SHARE, 2))
+            if 'bounds' in e:
+                t['min'] = e['bounds'].get('min')
             kind = "crafted" if e["kind"] == "crafted" else None
             lines, miss = target_lines(t, fams, eld_fams, index, kind=kind)
             unmapped += [x for x in miss if x not in unmapped]
+            if lines and 'bounds' in e:
+                ranges.setdefault(lines[0]['id'], []).append(e['bounds'])
             for f in lines:
                 add_filter(filters, {k: v for k, v in f.items() if k != "line"})
         elif e["type"] == "raw":                 # an Eldritch implicit by its text: the trade site's implicit stat
@@ -238,11 +244,21 @@ def _query(base_name: str, kept: list[dict], fams, eld_fams, index, status: str,
                 f["alts"] = ids
             if v is not None:
                 f["value"] = {"min": math.floor(v * VALUE_SHARE) if v >= 10 else round(v * VALUE_SHARE, 2)}
+            if 'bounds' in e:
+                f['value'] = dict(e['bounds'])
+                ranges.setdefault(f['id'], []).append(e['bounds'])
             add_filter(filters, f)
         elif e["type"] == "influence":
             misc[INFLUENCE_FILTERS[e["influence"]]] = {"option": "true"}
         elif e["type"] == "ilvl":
-            misc["ilvl"] = {"min": e["ilvl"]}
+            misc["ilvl"] = dict(e.get('bounds', {"min": e["ilvl"]}))
+    for f in filters:
+        if f['id'] in ranges:
+            lows = [v['min'] for v in ranges[f['id']] if v.get('min') is not None]
+            highs = [v['max'] for v in ranges[f['id']] if v.get('max') is not None]
+            f['value'] = {**({'min': max(lows)} if lows else {}), **({'max': min(highs)} if highs else {})}
+            if lows and highs and max(lows) > min(highs):
+                raise ValueError(M('m.eval.filters.range'))
     q = {"status": {"option": status}, "type": base_name, "stats": trade.stats_groups(filters),
          "filters": {"type_filters": {"filters": {"rarity": {"option": "nonunique"}}}}}
     if misc:
@@ -261,8 +277,13 @@ def _plan_drops(droppable: list[dict], passes_left: int) -> list[list[dict]]:
 
 # ------------------------------------------------------------------ entry
 @trade.measure_evaluation
-def evaluate(text: str, league: str | None = None, data=None, socket=None, equivalents=None, load_listings=False):
+def evaluate(text: str, league: str | None = None, data=None, socket=None, equivalents=None, load_listings=False,
+             manual_filters=None):
     from .prices import PRICE_LEAGUE, Prices
+    manual_filters = _validate_manual_filters(manual_filters)
+    if manual_filters is not None and not rarity_is(_header(text)['rarity'],
+            ('rare', 'редк', 'selten', 'magic', 'волшебн', 'magisch')):
+        raise ValueError(M('m.eval.filters.invalid'))
     if not load_listings:
         quote = _quick_quote(text, league)
         if quote is not None:
@@ -272,7 +293,8 @@ def evaluate(text: str, league: str | None = None, data=None, socket=None, equiv
     selected = league or lg["league"]
     token = PRICE_LEAGUE.set(selected)
     try:
-        result = _evaluate_with_context(text, league, data, socket, equivalents)
+        options = {'manual_filters': manual_filters} if manual_filters is not None else {}
+        result = _evaluate_with_context(text, league, data, socket, equivalents, **options)
         prices = Prices()
         status = prices.live_status
         result = dict(result, economy={k: v for k, v in status.items() if k != "prices"})
@@ -362,7 +384,7 @@ def _quick_quote(text: str, league: str | None) -> dict | None:
 
 
 def _evaluate_with_context(text: str, league: str | None = None, data: GameData | None = None, socket: str | None = None,
-             equivalents: list | None = None) -> dict:
+             equivalents: list | None = None, manual_filters=None) -> dict:
     """See the module docstring. Returns {"kind", "league", "league_source", "item", "ranking", "passes",
     "listings", "summary" (cheapest + online count, or None), "search_url", "message"?, "ninja_price"?, "warnings"}
     (messages as Text objects)."""
@@ -374,6 +396,8 @@ def _evaluate_with_context(text: str, league: str | None = None, data: GameData 
     from ..data.timeless_status import status as timeless_status
     key = (lg["league"], text.strip(), json.dumps(Prices().live_status, sort_keys=True),
            timeless_status().get("fingerprint"))
+    if manual_filters is not None:
+        key += (json.dumps(manual_filters, sort_keys=True),)
     with _LOCK:
         hit = _CACHE.get(key)
         if hit and hit[0] > time.monotonic():
@@ -393,7 +417,8 @@ def _evaluate_with_context(text: str, league: str | None = None, data: GameData 
         else:
             try:
                 trade.count_request("evaluation.cache_miss")
-                out = _evaluate(text, lg, data)
+                out = (_evaluate(text, lg, data, manual_filters=manual_filters) if manual_filters is not None
+                       else _evaluate(text, lg, data))
                 out.pop("_deadline", None)
                 out.pop("_status", None)
                 out["summary"] = _summary(out)
@@ -432,6 +457,7 @@ def _summary(out: dict) -> dict | None:
               "no_conversion" if not values or any(l.get("conversion_estimated") for l in pool) else
               "wide_range" if values and min(values) > 0 and max(values) / min(values) >= 5 else
               "category" if out.get("kind") in ("base", "other") or out.get("comparison_scope") == "category" else
+              "manual" if out.get('manual_filters') else
               "relaxed" if last.get("dropped") else "comparison")
     return {"price": cheapest["price"], "chaos": cheapest.get("chaos"),
             "conversion_estimated": cheapest.get("conversion_estimated", True), "online": n_online, "offline_only": not online,
@@ -440,6 +466,7 @@ def _summary(out: dict) -> dict | None:
             "relaxed": bool(last.get("dropped")), "dropped": last.get("dropped", []),
             "reliability_reason": reason, "reliable_estimate": reason == "comparison",
             "match_quality": "category" if out.get("kind") in ("base", "other") or out.get("comparison_scope") == "category" else
+                             "manual" if out.get('manual_filters') else
                              "relaxed" if last.get("dropped") else "filtered"}
 
 
@@ -451,7 +478,7 @@ def _base_result(lg: dict) -> dict:
     return out
 
 
-def _evaluate(text: str, lg: dict, data: GameData) -> dict:
+def _evaluate(text: str, lg: dict, data: GameData, manual_filters=None) -> dict:
     out = _base_result(lg)
     h = _header(text)
     # a corrupted / mirrored item is compared with items in the same state (every search of this evaluation)
@@ -477,11 +504,15 @@ def _evaluate(text: str, lg: dict, data: GameData) -> dict:
         base = next((x for x in hits if x[2] != TIMELESS_BASE), None) or _contained_base(h["head"], names)
         return _unique(out, h, base, lg)
     parsed = parse_item_text(text, data) if not h["kind"] else {"warnings": []}
+    if manual_filters is not None and (unidentified or not parsed.get('base_id')
+            or parsed.get('rarity') not in ('rare', 'magic')
+            or not (parsed.get('targets') or parsed.get('extra_implicits'))):
+        raise ValueError(M('m.eval.filters.invalid'))
     if unidentified and parsed.get("base_id"):
         return _by_type(out, data.bases[parsed["base_id"]].name, lg, "base", parsed)
     if parsed.get("base_id") and parsed.get("rarity") in ("rare", "magic") and (parsed.get("targets")
                                                                                or parsed.get("extra_implicits")):
-        return _rare(out, parsed, lg, data)
+        return _rare(out, parsed, lg, data, manual_filters=manual_filters)
     if parsed.get("base_id"):
         return _by_type(out, data.bases[parsed["base_id"]].name, lg, "base", parsed)
     if hits:
@@ -677,7 +708,7 @@ def _wait(out: dict) -> float:
 def _search_and_fetch(out: dict, lg: dict, payload: dict) -> int:
     reason = out.get("kind", "type")
     if reason == "rare":
-        reason = "rare_relaxed" if out.get("passes") else "rare_exact"
+        reason = "rare_manual" if out.get('manual_filters') else "rare_relaxed" if out.get("passes") else "rare_exact"
     if payload.get("query", {}).get("status", {}).get("option") == "any":
         reason = "offline"
     with trade.request_reason(reason):
@@ -884,7 +915,34 @@ def _unique(out: dict, h: dict, base: tuple | None, lg: dict) -> dict:
     return out
 
 
-def _rare(out: dict, parsed: dict, lg: dict, data: GameData) -> dict:
+def _validate_manual_filters(filters):
+    if filters is None:
+        return None
+    if not isinstance(filters, list) or len(filters) > 64:
+        raise ValueError(M('m.eval.filters.invalid'))
+    result, seen = [], set()
+    for f in filters:
+        if (not isinstance(f, dict) or set(f) - {'id', 'enabled', 'min', 'max'}
+                or not isinstance(f.get('id'), str) or not re.fullmatch(r'[0-9a-f]{64}', f['id'])
+                or f['id'] in seen or not isinstance(f.get('enabled'), bool)):
+            raise ValueError(M('m.eval.filters.invalid'))
+        bounds = {k: f.get(k) for k in ('min', 'max')}
+        if any(v is not None and (type(v) not in (int, float) or abs(v) > 1e100 or not math.isfinite(v)) for v in bounds.values()):
+            raise ValueError(M('m.eval.filters.invalid'))
+        if bounds['min'] is not None and bounds['max'] is not None and bounds['min'] > bounds['max']:
+            raise ValueError(M('m.eval.filters.range'))
+        seen.add(f['id'])
+        result.append({'id': f['id'], 'enabled': f['enabled'], **bounds})
+    return sorted(result, key=lambda f: f['id'])
+
+
+def _filter_id(e):
+    identity = (e['type'], e.get('kind'), e.get('target', {}).get('key'),
+                e.get('english'), e.get('line'), e.get('influence'))
+    return hashlib.sha256(json.dumps(identity, ensure_ascii=False).encode()).hexdigest()
+
+
+def _rare(out: dict, parsed: dict, lg: dict, data: GameData, manual_filters=None) -> dict:
     out["value_share"] = VALUE_SHARE
     base = data.bases[parsed["base_id"]]
     # (a "presence" line is the upgrade of an implicit already read: the implicit's own line describes it)
@@ -910,6 +968,65 @@ def _rare(out: dict, parsed: dict, lg: dict, data: GameData) -> dict:
     fams = ctx.families()
     eld_fams = eld.base_families(get_eldritch(), base.item_class, ctx.tags) if not ctx.influences else {}
     unmapped: list = []
+    controls, mapped_ids = [], set()
+    for e in ranking:
+        missing = []
+        query = _query(base.name, [e], fams, eld_fams, index, 'online', missing)['query']
+        if any(g['filters'] for g in query['stats']) or query['filters'].get('misc_filters', {}).get('filters'):
+            mapped_ids.add(_filter_id(e))
+        numeric = e.get('target', {}).get('value') if e['type'] == 'mod' else e.get('value')
+        numeric = e['ilvl'] if e['type'] == 'ilvl' else numeric
+        minimum = (e['ilvl'] if e['type'] == 'ilvl' else
+                   math.floor(numeric * VALUE_SHARE) if numeric is not None and numeric >= 10 else
+                   round(numeric * VALUE_SHARE, 2) if numeric is not None else None)
+        controls.append({'id': _filter_id(e), 'label': M('eval.ilvl', n=e['ilvl']) if e['type'] == 'ilvl' else e['label'], 'why': e['why'],
+                         'editable': not missing, 'numeric': numeric is not None, 'enabled': True,
+                         'min': minimum, 'max': None, 'reason': M('eval.filters.active')})
+    out['filters'] = controls
+    kept = list(ranking)
+    if manual_filters is not None:
+        selected = {f['id']: f for f in manual_filters}
+        if set(selected) != {f['id'] for f in controls}:
+            raise ValueError(M('m.eval.filters.invalid'))
+        kept = []
+        for e, control in zip(ranking, controls):
+            setting = selected[control['id']]
+            if (setting['enabled'] and not control['editable'] or not control['numeric']
+                    and any(setting[k] is not None for k in ('min', 'max'))):
+                raise ValueError(M('m.eval.filters.invalid'))
+            if e['type'] == 'ilvl' and any(setting[k] is not None and (setting[k] < 0 or setting[k] != int(setting[k]))
+                                         for k in ('min', 'max')):
+                raise ValueError(M('m.eval.filters.invalid'))
+            control.update(enabled=setting['enabled'], min=setting['min'], max=setting['max'])
+            if setting['enabled']:
+                kept.append(dict(e, **({'bounds': {k: setting[k] for k in ('min', 'max') if setting[k] is not None}}
+                                      if control['numeric'] else {})))
+        out['warnings'].append(M('m.eval.filters.manual'))
+        out['manual_filters'] = True
+        if not kept:
+            out['comparison_scope'] = 'category'
+        dropped = [e for e in ranking if _filter_id(e) not in {_filter_id(x) for x in kept}]
+        try:
+            p = {'status': 'online', 'dropped': [e['label'] for e in dropped], 'total': None}
+            out['passes'].append(p)
+            _with_offline_fallback(out, lg, lambda status: _query(base.name, kept, fams, eld_fams, index, status, unmapped), p)
+        except trade.TradeError as e:
+            out['warnings'].append(M('m.eval.trade_error', error=e.args[0] if e.args else str(e)))
+        for p in out['passes']:
+            p['dropped'] = [e['label'] for e in dropped]
+    else:
+        kept = _rare_search(out, base, ranking, lg, fams, eld_fams, index, unmapped)
+    for e, control in zip(ranking, controls):
+        control['enabled'] = control['id'] in mapped_ids and any(_filter_id(e) == _filter_id(x) for x in kept)
+        control['reason'] = M('eval.filters.unmapped' if not control['editable'] else
+                              'eval.filters.active' if control['enabled'] else
+                              'eval.filters.manualOff' if manual_filters is not None else 'eval.filters.autoOff')
+    out['warnings'] += [M('m.trade.unmapped', line=u) for u in unmapped]
+    out['unmatched_properties'] = list(dict.fromkeys(unmapped + [l['text'] for l in parsed['lines'] if not l.get('matched')]))
+    return out
+
+
+def _rare_search(out, base, ranking, lg, fams, eld_fams, index, unmapped):
     droppable = [e for e in reversed(ranking) if not e["core"]]        # cheapest to recreate first
     budget = max(1, config.EVAL_MAX_SEARCHES)
     steps = [[]] + _plan_drops(droppable, budget - 2)                  # one search stays for the offline fallback
@@ -928,6 +1045,4 @@ def _rare(out: dict, parsed: dict, lg: dict, data: GameData) -> dict:
             out["warnings"].append(M("m.eval.offline_fallback") if total else M("m.eval.no_results"))
     except trade.TradeError as e:
         out["warnings"].append(M("m.eval.trade_error", error=e.args[0] if e.args else str(e)))
-    out["warnings"] += [M("m.trade.unmapped", line=u) for u in unmapped]
-    out["unmatched_properties"] = list(dict.fromkeys(unmapped + [l["text"] for l in parsed["lines"] if not l.get("matched")]))
-    return out
+    return kept
