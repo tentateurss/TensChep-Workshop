@@ -1,0 +1,55 @@
+{
+  "version": "3.30.0.4",
+  "repository": "repoe-fork/repoe-fork.github.io",
+  "revision": "c97553d1fc14a134dd6813e672d2b45fddf5b42d",
+  "files": {
+    "version.txt": {
+      "sha256": "b0c6808c883b7109a5af41ac0f00153424ffc7a8f50d19ea127b818a8e8389a6",
+      "bytes": 8
+    },
+    "exported-version.txt": {
+      "sha256": "ee338f66e880de54b22855c00cf13297a4241838777e09b94f22a56fb194cd92",
+      "bytes": 9
+    },
+    "data/base_items.json": {
+      "sha256": "b16dc6c967b7e70ee369fba80506cdf08a1fa5bc5dd5c4f07aaddead97c98b2f",
+      "bytes": 8318832
+    },
+    "data/mods.json": {
+      "sha256": "8549a332c5de55ba5b3a7208adf2fca321ccce3ba50698200a78e867cba1f4e4",
+      "bytes": 35111698
+    },
+    "data/essences.json": {
+      "sha256": "55d0f1e5ac535124212586a37e6b9e33afaf8d30f47a6c6d28431bc23317c857",
+      "bytes": 142543
+    },
+    "data/fossils.json": {
+      "sha256": "e171c119f874b4f2be2a98366af61c5a2091ca26f508b2f5b9d6b551bb9df181",
+      "bytes": 364524
+    },
+    "data/crafting_bench_options.json": {
+      "sha256": "d664372c28784a65f9c10c1b8d36608d084ac698a6caaafbaf4be40be8b6f76a",
+      "bytes": 500641
+    },
+    "data/item_classes.json": {
+      "sha256": "58c679523f4c45ab7a70ec9db9c0405b1ff37633e9083fa4ca860bfb42c9c380",
+      "bytes": 17903
+    },
+    "data/Russian/base_items.json": {
+      "sha256": "cbf449f541ddc6254e9a97dba717356b91e481389abb95de0fa5581af2226886",
+      "bytes": 8640995
+    },
+    "data/Russian/mods.json": {
+      "sha256": "7bd473774f8c27c3214a03c606f4a404ad72afa8379b21dfc39ba06d3e4424a7",
+      "bytes": 38439368
+    },
+    "data/German/base_items.json": {
+      "sha256": "d1c55145493a546ec4d1864913388ba3375793ef47587e7e5b60a4cb3c63aed1",
+      "bytes": 8414000
+    },
+    "data/German/mods.json": {
+      "sha256": "2742d107a5d190be543f4c3507c6a0cc979dafee1b947b1bb851f42095fb91af",
+      "bytes": 36169894
+    }
+  }
+}
