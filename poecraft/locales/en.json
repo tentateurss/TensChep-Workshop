@@ -1234,5 +1234,14 @@
   "build.map.baseNode": "Base passive",
   "build.map.compare": "Compare with author tree",
   "build.map.noTarget": "No comparison",
-  "build.map.allocationsUnknown": "The PoB export does not specify allocated nodes. This is the base tree, not a reconstructed build."
+  "build.map.allocationsUnknown": "The PoB export does not specify allocated nodes. This is the base tree, not a reconstructed build.",
+  "build.trade.button": "Find on Trade",
+  "build.trade.league": "Trade league",
+  "build.trade.loading": "Searching…",
+  "build.trade.open": "Open search results",
+  "build.trade.error.item": "Item format is not supported.",
+  "build.trade.error.variant": "This PoB variant or roll cannot be resolved safely. No search was sent.",
+  "build.trade.error.league": "Select a league.",
+  "build.trade.error.unavailable": "Search unavailable. Check the connection or wait for the Trade limit to expire.",
+  "build.trade.scope": "Search uses supported filters; an exact match or an available offer is not guaranteed."
 }

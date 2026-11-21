@@ -217,3 +217,15 @@ class BuildHTTP(unittest.TestCase):
         with patch.object(buildtree,'load_tree',side_effect=buildtree.TreeDataError('network')):
             self.assertEqual(self.post({'version':'3_29'},path='/api/build/tree'),
                              (503,{'error':'build.map.error.network'}))
+
+    def test_trade_api_origin_league_and_unsupported_item(self):
+        from poecraft import buildtrade
+        body={'item':{'text':'Rarity: NORMAL\nCoral Ring'},'league':'Covens'}
+        with patch.object(buildtrade,'search',return_value={'url':'https://www.pathofexile.com/trade/search/Covens/q1','notes':[]}) as search:
+            self.assertEqual(self.post(body,'https://evil.example','/api/build/trade')[0],403)
+            search.assert_not_called()
+            self.assertEqual(self.post(body,path='/api/build/trade')[0],200)
+            search.assert_called_once_with(body['item'],'Covens')
+        with patch.object(buildtrade.evaluator,'evaluate') as evaluate:
+            self.assertEqual(self.post({'item':{'text':'{variant:1}unknown'},'league':'Covens'},path='/api/build/trade')[0],400)
+            evaluate.assert_not_called()

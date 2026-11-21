@@ -475,7 +475,7 @@ class Handler(BaseHTTPRequestHandler):
             size = -1
         if size < 0 or size > config.MAX_BODY:
             return self._json({"error": f"request body larger than {config.MAX_BODY} bytes"}, 413)
-        if urlparse(self.path).path in ("/api/build/import", "/api/build/tree"):
+        if urlparse(self.path).path in ("/api/build/import", "/api/build/tree", "/api/build/trade"):
             from . import buildassistant
             expected = f"127.0.0.1:{self.server.server_address[1]}"
             if (self.client_address[0] != "127.0.0.1" or self.headers.get("Host") != expected or
@@ -485,6 +485,15 @@ class Handler(BaseHTTPRequestHandler):
                 body = json.loads(self.rfile.read(size))
                 if not isinstance(body, dict):
                     raise ValueError('Expected an object')
+                if urlparse(self.path).path == "/api/build/trade":
+                    from . import buildtrade
+                    try:
+                        item = body.get('item')
+                        if not isinstance(item, dict):
+                            raise buildtrade.BuildTradeError('item')
+                        return self._json(render(buildtrade.search(item, body.get('league')), body.get('lang', 'en')))
+                    except buildtrade.BuildTradeError as error:
+                        return self._json({'error': 'build.trade.error.' + str(error)}, 400)
                 if urlparse(self.path).path == "/api/build/tree":
                     from . import buildtree
                     try:

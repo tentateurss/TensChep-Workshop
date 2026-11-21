@@ -1234,5 +1234,14 @@
   "build.map.baseNode": "Basispassive",
   "build.map.compare": "Mit Autorenbaum vergleichen",
   "build.map.noTarget": "Kein Vergleich",
-  "build.map.allocationsUnknown": "Der PoB-Export enthält keine vergebenen Punkte. Dies ist der Basisbaum, kein rekonstruierter Build."
+  "build.map.allocationsUnknown": "Der PoB-Export enthält keine vergebenen Punkte. Dies ist der Basisbaum, kein rekonstruierter Build.",
+  "build.trade.button": "Auf Trade suchen",
+  "build.trade.league": "Trade-Liga",
+  "build.trade.loading": "Suche…",
+  "build.trade.open": "Suchergebnisse öffnen",
+  "build.trade.error.item": "Dieses Gegenstandsformat wird nicht unterstützt.",
+  "build.trade.error.variant": "Diese PoB-Variante lässt sich nicht sicher auflösen. Keine Suchanfrage gesendet.",
+  "build.trade.error.league": "Liga auswählen.",
+  "build.trade.error.unavailable": "Suche nicht verfügbar. Verbindung prüfen oder das Trade-Limit abwarten.",
+  "build.trade.scope": "Die Suche nutzt unterstützte Filter. Exakte Übereinstimmung oder verfügbare Angebote sind nicht garantiert."
 }

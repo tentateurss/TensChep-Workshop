@@ -1234,5 +1234,14 @@
   "build.map.baseNode": "Базовый пассив",
   "build.map.compare": "Сравнить с деревом автора",
   "build.map.noTarget": "Без сравнения",
-  "build.map.allocationsUnknown": "В PoB не указан список взятых пассивов. Показано базовое дерево, а не восстановленный догадками билд."
+  "build.map.allocationsUnknown": "В PoB не указан список взятых пассивов. Показано базовое дерево, а не восстановленный догадками билд.",
+  "build.trade.button": "Найти на Trade",
+  "build.trade.league": "Лига Trade",
+  "build.trade.loading": "Поиск…",
+  "build.trade.open": "Открыть результаты поиска",
+  "build.trade.error.item": "Формат предмета не поддерживается.",
+  "build.trade.error.variant": "Этот вариант или ролл PoB нельзя достоверно разобрать. Запрос не отправлен.",
+  "build.trade.error.league": "Выберите лигу.",
+  "build.trade.error.unavailable": "Поиск недоступен. Проверьте сеть или дождитесь окончания ограничения Trade.",
+  "build.trade.scope": "Поиск использует поддерживаемые фильтры. Точный аналог и наличие объявлений не гарантируются."
 }

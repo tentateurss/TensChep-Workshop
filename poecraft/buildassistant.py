@@ -227,7 +227,8 @@ def import_build(source):
                 raise BuildImportError('format')
             raw_item = (item.text or '').strip()
             lines = raw_item.splitlines()
-            name = lines[1].strip() if len(lines) > 1 and lines[0].startswith('Rarity:') else None
+            name = next((lines[i+1].strip() for i,line in enumerate(lines[:-1])
+                         if re.match(r'^(?:Rarity|Редкость|Seltenheit):',line.strip(),re.I)),None)
             inventory[ident] = {'id': ident, 'name': name, 'text': raw_item, 'variants': dict(item.attrib),
                                 'mod_ranges': [dict(m.attrib) for m in item.findall('ModRange')]}
         sets = list(items.findall('ItemSet'))
