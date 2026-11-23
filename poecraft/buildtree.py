@@ -12,6 +12,7 @@ from . import config
 from .data.timeless import lua_table, node_position
 
 REPOSITORY = 'PathOfBuildingCommunity/PathOfBuilding'
+CACHE_FORMAT = 2
 _lock = threading.Lock()
 
 
@@ -44,6 +45,7 @@ def convert(tree):
     counts = constants.get('skillsPerOrbit') or [1, 6, 12, 12, 40]
     entries = dict(enumerate(tree['nodes'], 1)) if isinstance(tree['nodes'], list) else tree['nodes']
     for ident, node in entries.items():
+        ident = node.get('skill', ident)
         if not str(ident).isdigit():
             continue
         group = groups.get(node.get('group'))
@@ -52,17 +54,26 @@ def convert(tree):
         x, y = node_position(group, node.get('orbit', 0), node.get('orbitIndex', 0), radii, counts)
         if not all(math.isfinite(n) and abs(n) < 100000 for n in (x, y)):
             raise TreeDataError('invalid')
-        kind = ('mastery' if node.get('isMastery') else 'keystone' if node.get('isKeystone') else
+        if str(ident) in nodes:
+            raise TreeDataError('invalid')
+        kind = ('start' if 'classStartIndex' in node else 'mastery' if node.get('isMastery') else 'keystone' if node.get('isKeystone') else
                 'notable' if node.get('isNotable') else 'socket' if node.get('isJewelSocket') else 'normal')
         nodes[str(ident)] = {'id': str(ident), 'x': round(x, 2), 'y': round(y, 2),
+            'group': str(node['group']), 'orbit': node.get('orbit', 0),
+            'radius': radii[node.get('orbit', 0)],
+            'angle': math.atan2(x-group['x'], group['y']-y),
             'name': node.get('name') or '', 'stats': node.get('stats') or [], 'kind': kind,
             'ascendancy': node.get('ascendancyName'), 'mastery_effects': node.get('masteryEffects') or []}
-        for target in (node.get('out') or []) + (node.get('in') or []):
+        for target in node.get('out') or []:
             if str(target) != str(ident):
                 links.add(tuple(sorted((str(ident), str(target)))))
     if not 100 < len(nodes) < 10000:
         raise TreeDataError('invalid')
-    return {'nodes': nodes, 'links': [list(pair) for pair in sorted(links) if all(k in nodes for k in pair)]}
+    # PoB separates allocation adjacency from visible connectors (PassiveTree.lua).
+    links = [list(pair) for pair in sorted(links) if all(k in nodes for k in pair)
+             and all(nodes[k]['kind'] not in ('start', 'mastery') for k in pair)
+             and nodes[pair[0]]['ascendancy'] == nodes[pair[1]]['ascendancy']]
+    return {'nodes': nodes, 'links': links}
 
 
 def load_tree(version):
@@ -74,7 +85,7 @@ def load_tree(version):
         try:
             cached = json.loads(path.read_text(encoding='utf-8'))
             expected = f"https://raw.githubusercontent.com/{REPOSITORY}/{cached['revision']}/src/TreeData/{version}/tree.lua"
-            if (cached['version'] == version and cached['nodes'] and
+            if (cached.get('format') == CACHE_FORMAT and cached['version'] == version and cached['nodes'] and
                     re.fullmatch(r'[0-9a-f]{40}', cached['revision']) and cached['source'] == expected):
                 return cached
         except (OSError, ValueError, KeyError, TypeError):
@@ -97,7 +108,7 @@ def load_tree(version):
             raise
         except (ValueError, KeyError, IndexError, TypeError, AttributeError, UnicodeError) as error:
             raise TreeDataError('invalid') from error
-        payload.update(version=version, source=url, revision=revision,
+        payload.update(format=CACHE_FORMAT, version=version, source=url, revision=revision,
                        sha256=hashlib.sha256(raw).hexdigest(), fetched_at=time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()))
         try:
             path.parent.mkdir(parents=True, exist_ok=True)

@@ -1,5 +1,10 @@
 const fs=require('fs'),vm=require('vm'),path=require('path'),assert=require('assert');
-const {delta,masteries}=vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../../poecraft/web/build-tree.js'),'utf8')+'\nBuildTree');
+const {delta,masteries,connection}=vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../../poecraft/web/build-tree.js'),'utf8')+'\nBuildTree');
+const n={group:'1',orbit:2,radius:162,angle:0,x:100,y:38};
+assert(connection(n,{...n,angle:Math.PI/2,x:262,y:200}).includes('A162 162 0 0 1'));
+assert(connection(n,{...n,group:'2',x:200}).includes('L200 38'));
+assert(connection(n,{...n,angle:Math.PI,x:100,y:362}).includes(' 0 0 0 '));
+assert(connection({...n,angle:Math.PI*1.9},{...n,angle:.1}).includes(' 0 0 1 '));
 const a={version:'3_30',nodes:[1,2,4],mastery_effects:'{4,10}'},b={version:'3_30',nodes:[2,3,4,70000],mastery_effects:'{4,11}'};
 assert.equal(JSON.stringify(delta(a,b)),JSON.stringify({added:['3','70000'],removed:['1'],masteries:['4']}));
 assert.equal(delta(a,{...b,version:'3_29'}),null);

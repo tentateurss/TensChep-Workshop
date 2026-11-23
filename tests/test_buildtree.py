@@ -14,6 +14,37 @@ def tree_source(name='Life'):
 
 
 class BuildTree(unittest.TestCase):
+    def test_node_list_positions_are_not_passive_ids_or_connections(self):
+        data=T.lua_table(tree_source().decode())
+        for i,node in enumerate(data['nodes'],1001):
+            node.update(skill=i,out=[str(i+1)] if i<1120 else [])
+        converted=T.convert(data)
+        self.assertNotIn('1',converted['nodes'])
+        self.assertIn('1001',converted['nodes'])
+        self.assertIn(['1001','1002'],converted['links'])
+
+    def test_pob_does_not_draw_virtual_ascendancy_start_or_mastery_connections(self):
+        data=T.lua_table(tree_source().decode())
+        # PoB PassiveTree.lua's connector contract, distinct from allocation adjacency.
+        data['nodes'][0].update(out=['2','3','4','5'])
+        data['nodes'][1]['ascendancyName']='Ascendant'
+        data['nodes'][2]['classStartIndex']=0
+        data['nodes'][3]['isMastery']=True
+        converted=T.convert(data)
+        for pair in [['1','2'],['1','3'],['1','4']]:
+            self.assertNotIn(pair,converted['links'])
+        self.assertIn(['1','5'],converted['links'])
+
+    def test_orbit_geometry_retains_reference_group_and_arc_radius(self):
+        data=T.lua_table(tree_source().decode())
+        data['constants']={'orbitRadii':[0,82,162],'skillsPerOrbit':[1,6,16]}
+        data['nodes'][0].update(orbit=2,orbitIndex=2)
+        node=T.convert(data)['nodes']['1']
+        self.assertAlmostEqual(node['x'],100+162*2**-.5,places=2)
+        self.assertAlmostEqual(node['y'],200-162*2**-.5,places=2)
+        self.assertEqual(node['group'],'1')
+        self.assertEqual(node['radius'],162)
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)

@@ -2,6 +2,10 @@
 // Isolated renderer: all coordinates, connections and effects come from the selected PoB version.
 const BuildTree = (() => {
  const cache=new Map();let token=0;
+ function connection(a,b){const start=`M${a.x} ${a.y}`;
+  if(a.group===b.group&&a.orbit===b.orbit&&a.radius>0){const delta=Math.atan2(Math.sin(b.angle-a.angle),Math.cos(b.angle-a.angle)),norm=x=>(x+Math.PI*2)%(Math.PI*2),sweep=Math.abs(Math.abs(delta)-Math.PI)<1e-9?norm(a.angle)>norm(b.angle):delta>0;return `${start}A${a.radius} ${a.radius} 0 0 ${sweep?1:0} ${b.x} ${b.y}`;}
+  return `${start}L${b.x} ${b.y}`;
+ }
  function masteries(spec){return Object.fromEntries([...(spec?.mastery_effects||'').matchAll(/\{(\d+),(\d+)\}/g)].map(m=>[m[1],Number(m[2])]));}
  function delta(current,target){if(!target||typeof current.version!=='string'||typeof target.version!=='string'||current.version.replaceAll('.','_')!==target.version.replaceAll('.','_')||!current.nodes||!target.nodes)return null;
   const a=new Set(current.nodes.map(String)),b=new Set(target.nodes.map(String)),am=masteries(current),bm=masteries(target);
@@ -17,11 +21,12 @@ const BuildTree = (() => {
  }
  function draw(host,data,spec,target,t,esc){const nodes=data.nodes,chosen=new Set((spec.nodes||[]).map(String)),diff=delta(spec,target),added=new Set(diff?.added),removed=new Set(diff?.removed),changed=new Set(diff?.masteries),effects=masteries(spec),future=masteries(target);
   const unknown=[...chosen,...(diff?.added||[])].filter(id=>!nodes[id]);const override=new Set((spec.overrides||[]).map(x=>x.nodeId));
+  const ascendancyIds=[...new Set([...chosen,...added])].filter(id=>nodes[id]?.ascendancy);
   const state=id=>added.has(id)?'added':removed.has(id)?'removed':changed.has(id)?'changed':chosen.has(id)?'allocated':'';
   function list(ids,label){return `<details class="map-node-list"><summary>${esc(t(label))} (${ids.length})</summary>${ids.map(id=>`<button type="button" data-focus-node="${id}" ${nodes[id]?'':'disabled'}>${esc(nodes[id]?.name||t('build.map.unmappedNode'))}</button>`).join('')||esc(t('build.map.none'))}</details>`;}
-  host.innerHTML=`<div class="map-toolbar"><div class="row wrap"><button type="button" data-map="in" aria-label="${esc(t('build.map.zoomIn'))}">+</button><button type="button" data-map="out" aria-label="${esc(t('build.map.zoomOut'))}">−</button><button type="button" data-map="fit">${esc(t('build.map.fit'))}</button><button type="button" data-map="all">${esc(t('build.map.all'))}</button><button type="button" data-map="ascendancy">${esc(t('build.map.ascendancy'))}</button></div><label>${esc(t('build.map.find'))}<input type="search" data-node-search autocomplete="off"></label><div class="map-search-results"></div></div>
+  host.innerHTML=`<div class="map-toolbar"><div class="row wrap"><button type="button" data-map="in" aria-label="${esc(t('build.map.zoomIn'))}">+</button><button type="button" data-map="out" aria-label="${esc(t('build.map.zoomOut'))}">−</button><button type="button" data-map="fit">${esc(t('build.map.fit'))}</button><button type="button" data-map="all">${esc(t('build.map.all'))}</button><button type="button" data-map="ascendancy" ${ascendancyIds.length?'':'disabled'}>${esc(t('build.map.ascendancy'))}</button></div><label>${esc(t('build.map.find'))}<input type="search" data-node-search autocomplete="off"></label><div class="map-search-results"></div></div>
    ${spec.nodes===null?`<p class="build-warning">${esc(t('build.map.allocationsUnknown'))}</p>`:''}<p class="map-legend"><span class="allocated">● ${esc(t('build.map.allocated'))}</span><span class="added">● ${esc(t('build.map.added'))}</span><span class="removed">● ${esc(t('build.map.removed'))}</span><span>◆ ${esc(t('build.map.mastery'))}</span></p>
-   <div class="passive-map"><svg tabindex="0" role="img" aria-label="${esc(t('build.map.controls'))}"><g class="map-links">${data.links.map(([a,b])=>`<path class="${chosen.has(a)&&chosen.has(b)?'allocated':''}" d="M${nodes[a].x} ${nodes[a].y}L${nodes[b].x} ${nodes[b].y}"/>`).join('')}</g><g>${Object.values(nodes).map(n=>{const radius=n.kind==='keystone'?48:n.kind==='notable'?32:n.kind==='mastery'?32:20;return `<g data-node="${n.id}" class="map-node ${n.kind} ${n.ascendancy?'ascendancy':''} ${state(n.id)}" transform="translate(${n.x} ${n.y})"><title>${esc(n.name)}</title>${n.kind==='mastery'?`<path d="M0 -32L32 0 0 32 -32 0Z"/>`:`<circle r="${radius}"/>`}</g>`;}).join('')}</g></svg></div>
+   <div class="passive-map"><svg tabindex="0" role="img" aria-label="${esc(t('build.map.controls'))}"><g class="map-links">${data.links.map(([a,b])=>`<path class="${chosen.has(a)&&chosen.has(b)?'allocated':''}" d="${connection(nodes[a],nodes[b])}"/>`).join('')}</g><g>${Object.values(nodes).map(n=>{const radius=n.kind==='keystone'?48:n.kind==='notable'?32:n.kind==='mastery'?32:20;return `<g data-node="${n.id}" class="map-node ${n.kind} ${n.ascendancy?'ascendancy':''} ${state(n.id)}" transform="translate(${n.x} ${n.y})"><title>${esc(n.name)}</title>${n.kind==='mastery'?`<path d="M0 -32L32 0 0 32 -32 0Z"/>`:`<circle r="${radius}"/>`}</g>`;}).join('')}</g></svg></div>
    <div class="map-inspector" role="status">${esc(t('build.map.select'))}</div><p class="muted">${esc(t('build.map.controls'))}</p>
    ${unknown.length?`<p class="build-warning">${esc(t('build.map.unmapped').replace('{n}',String(new Set(unknown).size)))}</p>`:''}
    ${target&&!diff?`<p class="build-warning">${esc(t('build.map.noCompare'))}</p>`:''}
@@ -31,7 +36,7 @@ const BuildTree = (() => {
   const svg=host.querySelector('svg');let view,drag=null,moved=false;const pointers=new Map();
   function apply(){svg.setAttribute('viewBox',`${view.x} ${view.y} ${view.w} ${view.h}`);}
   function fit(ids){let points=ids.map(id=>nodes[id]).filter(Boolean);if(!points.length)points=Object.values(nodes);const xs=points.map(n=>n.x),ys=points.map(n=>n.y),w=Math.max(1800,Math.max(...xs)-Math.min(...xs)+700),h=Math.max(1800,Math.max(...ys)-Math.min(...ys)+700),ratio=svg.clientWidth/Math.max(1,svg.clientHeight);const width=Math.max(w,h*ratio),height=width/ratio;view={x:(Math.max(...xs)+Math.min(...xs)-width)/2,y:(Math.max(...ys)+Math.min(...ys)-height)/2,w:width,h:height};apply();}
-  const focusIds=[...chosen].filter(id=>nodes[id]&&!nodes[id].ascendancy);fit(focusIds);
+  const focusIds=[...new Set([...chosen,...added])].filter(id=>nodes[id]&&!nodes[id].ascendancy);fit(focusIds);
   function point(x,y){return new DOMPoint(x,y).matrixTransform(svg.getScreenCTM().inverse());}
   function zoom(factor,x,y){const p=x===undefined?{x:view.x+view.w/2,y:view.y+view.h/2}:point(x,y),w=Math.min(50000,Math.max(500,view.w*factor)),scale=w/view.w;view={x:p.x-(p.x-view.x)*scale,y:p.y-(p.y-view.y)*scale,w,h:view.h*scale};apply();}
   function inspect(id,center=false){const n=nodes[id];if(!n)return;host.querySelectorAll('.map-node.selected').forEach(el=>el.classList.remove('selected'));host.querySelector(`[data-node="${id}"]`)?.classList.add('selected');
@@ -47,9 +52,9 @@ const BuildTree = (() => {
    else if(drag){const a=point(drag.x,drag.y),b=point(e.clientX,e.clientY);if(Math.abs(e.clientX-drag.x)+Math.abs(e.clientY-drag.y)>2)moved=true;view.x+=a.x-b.x;view.y+=a.y-b.y;apply();}drag={x:e.clientX,y:e.clientY};});
   for(const event of ['pointerup','pointercancel'])svg.addEventListener(event,e=>{if(event==='pointerup'&&!moved){const p=point(e.clientX,e.clientY);let best=null,distance=Infinity;for(const n of Object.values(nodes)){const d=Math.hypot(n.x-p.x,n.y-p.y);if(d<distance){best=n;distance=d;}}if(distance<view.w/svg.clientWidth*18)inspect(best.id);}pointers.delete(e.pointerId);drag=null;});
   svg.addEventListener('keydown',e=>{if(['+','=','-','0','ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key))e.preventDefault();if(['+','='].includes(e.key))zoom(.7);if(e.key==='-')zoom(1.4);if(e.key==='0')fit(focusIds);if(e.key.startsWith('Arrow')){view.x+=({'ArrowLeft':-1,'ArrowRight':1}[e.key]||0)*view.w*.1;view.y+=({'ArrowUp':-1,'ArrowDown':1}[e.key]||0)*view.h*.1;apply();}});
-  host.querySelectorAll('[data-map]').forEach(button=>button.onclick=()=>{const action=button.dataset.map;if(action==='in'||action==='out')zoom(action==='in'?.7:1.4);else fit(action==='all'?Object.keys(nodes):action==='ascendancy'?[...chosen].filter(id=>nodes[id]?.ascendancy):focusIds);});
+  host.querySelectorAll('[data-map]').forEach(button=>button.onclick=()=>{const action=button.dataset.map;if(action==='in'||action==='out')zoom(action==='in'?.7:1.4);else fit(action==='all'?Object.keys(nodes):action==='ascendancy'?ascendancyIds:focusIds);});
   host.querySelectorAll('[data-focus-node]').forEach(b=>b.onclick=()=>inspect(b.dataset.focusNode,true));
   host.querySelector('[data-node-search]').oninput=e=>{const q=e.target.value.trim().toLowerCase(),matches=q?Object.values(nodes).filter(n=>n.name.toLowerCase().includes(q)).slice(0,12):[];const out=host.querySelector('.map-search-results');out.innerHTML=matches.map(n=>`<button type="button" data-search-node="${n.id}">${esc(n.name)}</button>`).join('');out.querySelectorAll('button').forEach(b=>b.onclick=()=>inspect(b.dataset.searchNode,true));};
  }
- return {mount,delta,masteries};
+ return {mount,delta,masteries,connection};
 })();
