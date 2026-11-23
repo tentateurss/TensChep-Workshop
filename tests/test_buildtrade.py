@@ -4,12 +4,13 @@ from poecraft import buildtrade as B
 
 
 class BuildTrade(unittest.TestCase):
-    def test_existing_evaluator_receives_selected_league(self):
+    def test_existing_trade_transport_receives_selected_league_and_reviewed_query(self):
         item={'text':'Rarity: UNIQUE\nTabula Rasa\nSimple Robe\nSockets: W-W-W-W-W-W'}
-        with patch.object(B.evaluator,'evaluate',return_value={'search_url':'https://www.pathofexile.com/trade/search/Covens/realid'}) as evaluate:
+        preview={'query':B.trade.build_query('Simple Robe',[],'unique'),'rarity':'unique','filters':[],'language':'en','skipped':[]}
+        with patch.object(B,'prepare',return_value=preview), patch.object(B.trade,'search_ids',return_value={'id':'realid','total':3}) as search:
             self.assertTrue(B.search(item,'Covens')['url'].endswith('/realid'))
-            self.assertEqual(evaluate.call_args.kwargs,{'league':'Covens','load_listings':True})
-            self.assertIn('--------',evaluate.call_args.args[0])
+            self.assertEqual(search.call_args.args[0],'Covens')
+            self.assertEqual(search.call_args.args[1],B.payload(preview))
 
     def test_unresolved_variant_sends_no_requests(self):
         with patch.object(B.evaluator,'evaluate') as evaluate:
@@ -17,14 +18,16 @@ class BuildTrade(unittest.TestCase):
             evaluate.assert_not_called()
 
     def test_never_returns_arbitrary_url(self):
-        with patch.object(B.evaluator,'evaluate',return_value={'search_url':'https://evil.example/'}):
+        preview={'query':B.trade.build_query('Coral Ring',[],'normal'),'rarity':'normal','filters':[],'language':'en','skipped':[]}
+        with patch.object(B,'prepare',return_value=preview), patch.object(B.trade,'search_ids',return_value={'id':'q1','total':1}), patch.object(B.trade,'search_url',return_value='https://evil.example/'):
             with self.assertRaises(B.BuildTradeError):B.search({'text':'Rarity: NORMAL\nCoral Ring'},'Covens')
 
     def test_rate_limit_does_not_open_previous_search(self):
-        notes=[{'level':'error','text':'Retry after 60 seconds'}]
-        with patch.object(B.evaluator,'evaluate',return_value={'search_url':'https://www.pathofexile.com/trade/search/Covens/old','notes':notes}) as evaluate:
-            self.assertIsNone(B.search({'text':'Rarity: NORMAL\nCoral Ring'},'Covens')['url'])
-            evaluate.assert_called_once()
+        preview={'query':B.trade.build_query('Coral Ring',[],'normal'),'rarity':'normal','filters':[],'language':'en','skipped':[]}
+        with patch.object(B,'prepare',return_value=preview), patch.object(B.trade,'search_ids',side_effect=B.trade.TradeError('Retry after 60 seconds')) as search:
+            with self.assertRaises(B.trade.TradeError):B.search({'text':'Rarity: NORMAL\nCoral Ring'},'Covens')
+            search.assert_called_once()
+            self.assertFalse(B._flights)
 
     def test_literal_legacy_rolls_and_implicit_markers(self):
         text=B.item_text({'text':'Rarity: RARE\nName\nCoral Ring\nImplicits: 1\n+25 to maximum Life\n{crafted}+40 to maximum Life','mod_ranges':[{'id':'1','range':'0.5'}]})

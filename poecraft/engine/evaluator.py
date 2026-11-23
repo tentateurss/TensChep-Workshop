@@ -805,7 +805,7 @@ def _contained_base(head: list[str], names: dict) -> tuple | None:
     return best[1] if best else None
 
 
-def _unique_properties(h: dict, unidentified: bool, language: str = "en") -> tuple[list, dict, list, list]:
+def _unique_properties(h: dict, unidentified: bool, language: str = "en", index=None) -> tuple[list, dict, list, list]:
     """Only unambiguous Trade stats; unsupported numeric/variant lines remain visible."""
     from .itemtext import SKIP_LINE, _marker, _clean, _groups
     from .context import generic_text
@@ -824,10 +824,11 @@ def _unique_properties(h: dict, unidentified: bool, language: str = "en") -> tup
                 unmatched.append(line)
     if unidentified:
         return filters, sockets, considered, unmatched
-    try:
-        index = trade.stat_index() if language == "en" else trade.stat_index(language)
-    except trade.TradeError:
-        index = {}
+    if index is None:
+        try:
+            index = trade.stat_index() if language == "en" else trade.stat_index(language)
+        except trade.TradeError:
+            index = {}
     lines = [(line, kind) for group, kind, _, _ in _groups(h["body"]) for line in group]
     for line, group_kind in lines:
         if ":" in line or SKIP_LINE.match(line) or line.startswith("{") or re.match(r"^(Requires|Требует|Benötigt)\b", line):

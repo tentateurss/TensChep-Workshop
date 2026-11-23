@@ -426,6 +426,13 @@ class Handler(BaseHTTPRequestHandler):
             if url.path == "/api/trade/leagues":       # league list of the trade site + the current one
                 from .data import trade
                 from .engine.tradelink import _price_league
+                if q.get('cached') == ['1']:
+                    try:
+                        rows = json.loads(trade._cache('leagues').read_text(encoding='utf-8'))['body']['result']
+                        known = [row['id'] for row in rows if row.get('realm','pc')=='pc']
+                    except (OSError,ValueError,KeyError,TypeError):
+                        known = []
+                    return self._json({'league':_price_league() or (known[0] if known else 'Standard'), 'known':known})
                 return self._json(trade.current_league(_price_league()))
             if url.path == "/api/modsearch":          # matches on this base + matching mods that cannot roll here
                 fam = _families_cached(q)
@@ -491,9 +498,17 @@ class Handler(BaseHTTPRequestHandler):
                         item = body.get('item')
                         if not isinstance(item, dict):
                             raise buildtrade.BuildTradeError('item')
-                        return self._json(render(buildtrade.search(item, body.get('league')), body.get('lang', 'en')))
+                        if body.get('preview') is True:
+                            return self._json(buildtrade.prepare(item, refresh=body.get('refresh') is True))
+                        if body.get('confirm') is not True or not isinstance(body.get('expected_query'),dict):
+                            raise buildtrade.BuildTradeError('filters')
+                        return self._json(render(buildtrade.search(item, body.get('league'), body.get('filters'),
+                                                body.get('status','online'),body['expected_query']), body.get('lang', 'en')))
                     except buildtrade.BuildTradeError as error:
                         return self._json({'error': 'build.trade.error.' + str(error)}, 400)
+                    except buildtrade.trade.TradeError as error:
+                        return self._json(render({'error':'build.trade.error.unavailable',
+                                                   'reason':error.args[0] if error.args else None},body.get('lang','en')),503)
                 if urlparse(self.path).path == "/api/build/tree":
                     from . import buildtree
                     try:

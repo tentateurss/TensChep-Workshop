@@ -220,12 +220,12 @@ class BuildHTTP(unittest.TestCase):
 
     def test_trade_api_origin_league_and_unsupported_item(self):
         from poecraft import buildtrade
-        body={'item':{'text':'Rarity: NORMAL\nCoral Ring'},'league':'Covens'}
+        body={'item':{'text':'Rarity: NORMAL\nCoral Ring'},'league':'Covens','confirm':True,'filters':[],'expected_query':{}}
         with patch.object(buildtrade,'search',return_value={'url':'https://www.pathofexile.com/trade/search/Covens/q1','notes':[]}) as search:
             self.assertEqual(self.post(body,'https://evil.example','/api/build/trade')[0],403)
             search.assert_not_called()
             self.assertEqual(self.post(body,path='/api/build/trade')[0],200)
-            search.assert_called_once_with(body['item'],'Covens')
+            search.assert_called_once_with(body['item'],'Covens',[],'online',{})
         with patch.object(buildtrade.evaluator,'evaluate') as evaluate:
             self.assertEqual(self.post({'item':{'text':'{variant:1}unknown'},'league':'Covens'},path='/api/build/trade')[0],400)
             evaluate.assert_not_called()

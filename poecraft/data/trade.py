@@ -158,14 +158,16 @@ def current_league(price_league: str | None = None) -> dict:
     return {"league": "Standard", "source": "fallback", "known": ["Standard"]}
 
 
-def stat_index(language: str = "en") -> dict[str, dict[str, str]]:
+def stat_index(language: str = "en", *, body=None) -> dict[str, dict[str, str]]:
     """{"explicit": {text: trade id}, "implicit": {...}, "fractured": {...}, "crafted": {...},
     "_alts": {kind: {text: [every id with that text]}}} - a few texts belong to more than one stat (e.g. two
     "#% of Fire Damage Leeched as Life" implicits); searches then accept any of them."""
-    body = (_get("/api/trade/data/stats", "stats", STATS_TTL) if language == "en" else
-            _get("/api/trade/data/stats", "stats", STATS_TTL, language))
-    out: dict = {t: {} for t in TYPES}
-    alts: dict = {t: {} for t in TYPES}
+    kinds = TYPES if body is None else (*TYPES, 'pseudo')
+    if body is None:
+        body = (_get("/api/trade/data/stats", "stats", STATS_TTL) if language == "en" else
+                _get("/api/trade/data/stats", "stats", STATS_TTL, language))
+    out: dict = {t: {} for t in kinds}
+    alts: dict = {t: {} for t in kinds}
     for group in body.get("result", []):
         if group.get("id") in out:
             for e in group.get("entries", []):
